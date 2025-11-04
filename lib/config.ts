@@ -104,6 +104,7 @@ export const API_CONFIG = {
       epicsHierarchy: '/issues/epics-hierarchy',
       issueStatusDuration: '/issues/issue-status-duration',
       releasePredictability: '/issues/release-predictability',
+      issuesGroupedByPriority: '/issues/issues-grouped-by-priority',
     },
     
     // Sprints endpoints
@@ -405,6 +406,20 @@ export interface ReleasePredictabilityResponse {
     releases?: ReleasePredictabilityItem[];
     count: number;
     months: number;
+  };
+  message: string;
+}
+
+export interface IssueByPriority {
+  priority: string;
+  issue_count: number;
+}
+
+export interface IssuesByPriorityResponse {
+  success: boolean;
+  data: {
+    issues_by_priority: IssueByPriority[];
+    count: number;
   };
   message: string;
 }

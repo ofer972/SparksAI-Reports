@@ -24,7 +24,9 @@ import {
   SprintPredictabilityItem,
   SprintPredictabilityResponse,
   ReleasePredictabilityItem,
-  ReleasePredictabilityResponse
+  ReleasePredictabilityResponse,
+  IssueByPriority,
+  IssuesByPriorityResponse
 } from './config';
 import { getAuthHeaders, refreshAccessToken, clearTokens } from './auth';
 
@@ -590,6 +592,31 @@ export class ApiService {
     
     if (result.success && result.data && result.data.release_predictability) {
       return result.data.release_predictability;
+    }
+    
+    return [];
+  }
+
+  // Issues Grouped by Priority API
+  async getIssuesByPriority(issueType: string, teamName?: string): Promise<IssueByPriority[]> {
+    const params = new URLSearchParams();
+    params.append('issue_type', issueType);
+    
+    if (teamName) {
+      params.append('team_name', teamName);
+    }
+
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issuesGroupedByPriority)}?${params}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch issues by priority: ${response.statusText}`);
+    }
+
+    const result: IssuesByPriorityResponse = await response.json();
+    
+    if (result.success && result.data && result.data.issues_by_priority) {
+      return result.data.issues_by_priority;
     }
     
     return [];
