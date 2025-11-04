@@ -11,7 +11,16 @@ const shouldBypassGateway = () => {
 // Get base URL dynamically (handles localhost bypass)
 const getBaseUrl = () => {
   if (shouldBypassGateway()) {
-    return process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+    // Only use localhost if we're actually on localhost
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || 
+       window.location.hostname === '127.0.0.1');
+    
+    if (isLocalhost) {
+      return process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+    }
+    // In production with BYPASS_AUTH, use API_BASE_URL (should be /api for rewrites)
+    return process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
   }
   return process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 };
