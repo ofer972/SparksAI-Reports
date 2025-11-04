@@ -30,8 +30,7 @@ In your Railway project dashboard, go to **Variables** and add the following:
 
 | Variable Name | Description | Example Value |
 |--------------|-------------|---------------|
-| `NEXT_PUBLIC_API_BASE_URL` | Backend API base URL. Use `/api` if using Next.js rewrites, or full URL if direct backend | `/api` or `https://your-backend.railway.app` |
-| `INTERNAL_BACKEND_URL` | Backend URL for Next.js rewrites (used in `next.config.js`) | `https://your-backend.railway.app` |
+| `INTERNAL_BACKEND_URL` | Backend server URL (internal domain on Railway). Used by Next.js server-side rewrites | `https://your-backend.railway.app` |
 | `NEXT_PUBLIC_API_VERSION` | API version | `v1` |
 | `NEXT_PUBLIC_JIRA_URL` | Your Jira instance URL | `https://argus-sec.atlassian.net/` |
 
@@ -39,46 +38,17 @@ In your Railway project dashboard, go to **Variables** and add the following:
 
 | Variable Name | Description | Default Value |
 |--------------|-------------|---------------|
-| `NEXT_PUBLIC_BACKEND_URL` | Direct backend URL (for localhost bypass) | `http://localhost:8000` |
-| `NEXT_PUBLIC_BYPASS_AUTH` | Set to `'true'` to bypass authentication (works on both localhost and Railway) | `false` |
+| `NEXT_PUBLIC_BACKEND_URL` | Backend URL for localhost development | `http://localhost:8000` |
 
 ### Example Configuration
 
-If your backend is deployed separately on Railway:
-
 ```
-NEXT_PUBLIC_API_BASE_URL=/api
 INTERNAL_BACKEND_URL=https://sparksai-backend-production.up.railway.app
 NEXT_PUBLIC_API_VERSION=v1
 NEXT_PUBLIC_JIRA_URL=https://argus-sec.atlassian.net/
-NEXT_PUBLIC_BYPASS_AUTH=true
 ```
 
-If you want to use direct backend URL (no Next.js proxy):
-
-```
-NEXT_PUBLIC_API_BASE_URL=https://sparksai-backend-production.up.railway.app
-INTERNAL_BACKEND_URL=https://sparksai-backend-production.up.railway.app
-NEXT_PUBLIC_API_VERSION=v1
-NEXT_PUBLIC_JIRA_URL=https://argus-sec.atlassian.net/
-NEXT_PUBLIC_BYPASS_AUTH=true
-```
-
-## Step 3.5: Bypass Authentication (Temporary Application)
-
-Since this is a temporary application, you can bypass authentication by setting:
-
-```
-NEXT_PUBLIC_BYPASS_AUTH=true
-```
-
-This will:
-- Skip all authentication checks
-- Skip token refresh logic
-- Allow direct API access without auth headers
-- Work on both localhost and Railway
-
-**Note:** Authentication is automatically bypassed on localhost (localhost and 127.0.0.1) regardless of this setting. Setting `NEXT_PUBLIC_BYPASS_AUTH=true` extends this behavior to Railway as well.
+**Note:** No authentication is needed. All requests go directly to the backend through Next.js rewrites.
 
 ## Step 4: Deploy
 
@@ -117,20 +87,25 @@ This will:
 - Next.js 14 uses App Router, ensure routes are in `app/` directory
 - Check that `next.config.js` rewrites are configured correctly
 
-## Environment Variable Reference
+## How It Works
 
-### `NEXT_PUBLIC_*` Variables
+### Simple Rewrite Flow
 
-Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser. Use these for:
-- API endpoints that the frontend calls directly
-- Public configuration values
+1. **Frontend makes request**: `/api/v1/issues/...`
+2. **Next.js rewrite intercepts**: `/api/:path*`
+3. **Rewrites to backend**: `{INTERNAL_BACKEND_URL}/api/:path*`
+4. **On Railway**: Uses `INTERNAL_BACKEND_URL` (internal domain, not exposed to browser)
+5. **On localhost**: Uses `NEXT_PUBLIC_BACKEND_URL` or defaults to `http://localhost:8000`
 
-### `INTERNAL_BACKEND_URL`
+### Environment Variables
 
-This is used by Next.js server-side rewrites in `next.config.js`. It should:
-- Point to your backend API server
-- Be accessible from Railway's servers
-- Not be exposed to the browser (no `NEXT_PUBLIC_` prefix)
+- **`INTERNAL_BACKEND_URL`**: Server-side only (used in `next.config.js` rewrites)
+  - On Railway: Your backend's Railway URL (internal domain)
+  - Not exposed to the browser
+  
+- **`NEXT_PUBLIC_BACKEND_URL`**: For localhost development only
+  - Used by Next.js rewrites when `INTERNAL_BACKEND_URL` is not set
+  - Defaults to `http://localhost:8000` (backend server port)
 
 ## Notes
 

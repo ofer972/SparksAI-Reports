@@ -3,48 +3,47 @@ RAILWAY ENVIRONMENT VARIABLES
 Copy and paste these into Railway Variables
 ===========================================
 
-NEXT_PUBLIC_API_BASE_URL=/api
 INTERNAL_BACKEND_URL=https://sparksai-backend-production.up.railway.app
 NEXT_PUBLIC_API_VERSION=v1
 NEXT_PUBLIC_JIRA_URL=https://argus-sec.atlassian.net/
-NEXT_PUBLIC_BYPASS_AUTH=true
 
-# Optional: If you want to bypass Next.js gateway entirely when BYPASS_AUTH=true,
-# uncomment and set this to your full backend URL:
-# NEXT_PUBLIC_BACKEND_URL=https://sparksai-backend-production.up.railway.app
+# Optional: For localhost development, set this to your backend URL
+# If not set, defaults to http://localhost:8000
+# NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 
 ===========================================
 NOTES:
 ===========================================
 
-1. NEXT_PUBLIC_API_BASE_URL:
-   - Use "/api" if using Next.js rewrites (recommended)
-   - OR use full backend URL like "https://your-backend.railway.app" if direct connection
+1. INTERNAL_BACKEND_URL (REQUIRED on Railway):
+   - Your backend server URL (internal domain on Railway)
+   - Used by Next.js server-side rewrites
+   - Must be a full URL: https://your-backend.railway.app
+   - This is server-side only and not exposed to the browser
 
-2. INTERNAL_BACKEND_URL:
-   - Replace "sparksai-backend-production.up.railway.app" with your actual backend URL
-   - This is used by Next.js server-side rewrites
-   - Must be a full URL starting with http:// or https://
+2. NEXT_PUBLIC_BACKEND_URL (Optional, for localhost):
+   - Set this for localhost development
+   - Example: http://localhost:8000
+   - If not set, defaults to http://localhost:8000
 
 3. NEXT_PUBLIC_JIRA_URL:
-   - Replace with your actual Jira instance URL
-   - Should end with a trailing slash "/"
+   - Your Jira instance URL
+   - Example: https://argus-sec.atlassian.net/
 
-4. NEXT_PUBLIC_BYPASS_AUTH:
-   - Set to "true" to bypass all authentication (temporary app)
-   - Set to "false" or omit to enable authentication
+4. NEXT_PUBLIC_API_VERSION:
+   - API version (default: v1)
 
 ===========================================
-ALTERNATIVE: Direct Backend URL (No Rewrites)
+HOW IT WORKS:
 ===========================================
 
-If you want to use direct backend URL instead of Next.js rewrites:
+- Frontend always calls: /api/v1/...
+- Next.js rewrite intercepts: /api/:path*
+- Rewrites to: {INTERNAL_BACKEND_URL}/api/:path*
+- On Railway: Uses INTERNAL_BACKEND_URL (internal domain)
+- On localhost: Uses NEXT_PUBLIC_BACKEND_URL or defaults to localhost:8000
 
-NEXT_PUBLIC_API_BASE_URL=https://sparksai-backend-production.up.railway.app
-INTERNAL_BACKEND_URL=https://sparksai-backend-production.up.railway.app
-NEXT_PUBLIC_API_VERSION=v1
-NEXT_PUBLIC_JIRA_URL=https://argus-sec.atlassian.net/
-NEXT_PUBLIC_BYPASS_AUTH=true
+No authentication needed - all requests go directly to backend.
 
 ===========================================
 

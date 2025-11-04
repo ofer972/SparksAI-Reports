@@ -1,22 +1,27 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // App directory is now stable in Next.js 14, no need for experimental flag
   async rewrites() {
-    let target = process.env.INTERNAL_BACKEND_URL || 'http://localhost:8080';
-    // Ensure destination is valid for Next.js (must start with /, http:// or https://)
-    if (!/^https?:\/\//.test(target)) {
+    // On Railway: use INTERNAL_BACKEND_URL (server-side only, internal domain)
+    // On localhost: use NEXT_PUBLIC_BACKEND_URL if set, otherwise default to localhost:8000
+    const backendUrl = process.env.INTERNAL_BACKEND_URL || 
+                       process.env.NEXT_PUBLIC_BACKEND_URL || 
+                       'http://localhost:8000';
+    
+    // Ensure destination is valid
+    if (!/^https?:\/\//.test(backendUrl)) {
       throw new Error(
-        `Invalid INTERNAL_BACKEND_URL: "${target}". It must start with http:// or https://`
+        `Invalid backend URL: "${backendUrl}". It must start with http:// or https://`
       );
     }
     
-    // Remove trailing /api if present in the target URL
-    target = target.replace(/\/api\/?$/, '');
+    // Remove trailing slash if present
+    const cleanBackendUrl = backendUrl.replace(/\/$/, '');
 
     return [
       {
+        // Rewrite /api/v1/... to backend/api/v1/...
         source: '/api/:path*',
-        destination: `${target}/:path*`, // Backend gateway adds /api automatically, so send /v1/... directly
+        destination: `${cleanBackendUrl}/api/:path*`,
       },
     ];
   },

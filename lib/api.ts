@@ -1,7 +1,6 @@
 import { 
   API_CONFIG, 
   buildBackendUrl,
-  buildUserServiceUrl,
   ApiResponse,
   User,
   TeamsResponse,
@@ -30,81 +29,13 @@ import {
   IssuesByTeam,
   IssuesByTeamResponse
 } from './config';
-import { getAuthHeaders, refreshAccessToken, clearTokens } from './auth';
+// No auth imports needed - simplified
 
 // Re-export types for convenience
 export type { IssuesTrendDataPoint, IssuesTrendResponse, PIPredictabilityResponse, PIPredictabilityData, ScopeChangesResponse, ScopeChangesDataPoint };
 
-// Lightweight authorized fetch wrapper to add Authorization when available
-const nativeFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  return (globalThis as any).fetch(input as any, init as any);
-};
-
-// Shared refresh promise to prevent concurrent refresh attempts
-let refreshPromise: Promise<boolean> | null = null;
-
-export async function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  // Detect localhost and bypass settings (auto-bypass on localhost or when BYPASS_AUTH is enabled)
-  const isLocalhost = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || 
-     window.location.hostname === '127.0.0.1');
-  const bypassAuthEnabled = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
-  const bypassAuth = isLocalhost || bypassAuthEnabled;
-  
-  const doFetch = async () => {
-    const headers = bypassAuth 
-      ? (init?.headers || {}) 
-      : getAuthHeaders(init?.headers as HeadersInit);
-    return nativeFetch(input, { ...(init || {}), headers });
-  };
-  
-  let res = await doFetch();
-  
-  // Skip token refresh logic if bypassing auth
-  if (bypassAuth) {
-    return res;
-  }
-  
-  // Handle both 401 and 403 - expired tokens might come as either
-  if (res.status === 401 || res.status === 403) {
-    // Use shared refresh promise so concurrent requests wait for the same refresh
-    if (!refreshPromise) {
-      refreshPromise = refreshAccessToken();
-    }
-    const refreshed = await refreshPromise;
-    
-    // Clear the promise after use (success or failure)
-    refreshPromise = null;
-    
-    if (refreshed) {
-      // Retry the original request with new token
-      res = await doFetch();
-      // If successful, return it
-      if (res.status !== 401 && res.status !== 403) {
-        return res;
-      }
-      // If still 401/403 after refresh:
-      // - 401: Token still invalid, redirect to login
-      // - 403: Might be a real permission issue, return to caller
-      if (res.status === 401) {
-        clearTokens();
-        if (typeof window !== 'undefined') {
-          try { window.location.assign('/login'); } catch {}
-        }
-      }
-    } else {
-      // Refresh failed - clear tokens and redirect
-      clearTokens();
-      if (typeof window !== 'undefined') {
-        try { window.location.assign('/login'); } catch {}
-      }
-    }
-  }
-  return res;
-}
-
-// Shadow global fetch within this module so all below calls include auth automatically
-const fetch = (input: RequestInfo | URL, init?: RequestInit) => authFetch(input, init);
+// Simple fetch - no authentication needed
+const fetch = typeof window !== 'undefined' ? window.fetch : (globalThis as any).fetch;
 
 export interface BurndownDataPoint {
   snapshot_date: string;
@@ -423,7 +354,7 @@ export class ApiService {
 
   // Users API
   async getCurrentUser(): Promise<User> {
-    const response = await fetch(buildUserServiceUrl(API_CONFIG.endpoints.users.getCurrentUser));
+    const response = await fetch(buildBackendUrl(API_CONFIG.endpoints.users.getCurrentUser));
     
     if (!response.ok) {
       throw new Error(`Failed to fetch current user: ${response.statusText}`);

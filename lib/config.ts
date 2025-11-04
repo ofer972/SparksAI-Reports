@@ -1,31 +1,5 @@
 // API Configuration
-// Helper to detect if we should bypass auth/gateway (localhost or when BYPASS_AUTH is enabled)
-const shouldBypassGateway = () => {
-  if (typeof window === 'undefined') return false; // Server-side: no bypass
-  const isLocalhost = window.location.hostname === 'localhost' || 
-                      window.location.hostname === '127.0.0.1';
-  const bypassAuthEnabled = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
-  return isLocalhost || bypassAuthEnabled;
-};
-
-// Get base URL dynamically (handles localhost bypass)
-const getBaseUrl = () => {
-  if (shouldBypassGateway()) {
-    // Only use localhost if we're actually on localhost
-    const isLocalhost = typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || 
-       window.location.hostname === '127.0.0.1');
-    
-    if (isLocalhost) {
-      return process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-    }
-    // In production with BYPASS_AUTH, bypass gateway and use direct backend URL
-    // Use INTERNAL_BACKEND_URL converted to NEXT_PUBLIC for client-side access
-    // Note: This requires NEXT_PUBLIC_BACKEND_URL to be set for client-side bypass
-    return process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
-  }
-  return process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
-};
+// Simple: Always use /api paths. Next.js rewrites handle routing to backend.
 
 // Get Jira URL
 export const getJiraUrl = (): string => {
@@ -39,9 +13,7 @@ export const getCleanJiraUrl = (): string => {
 };
 
 export const API_CONFIG = {
-  get baseUrl() {
-    return getBaseUrl();
-  },
+  baseUrl: '/api', // Always use /api - Next.js rewrites handle backend routing
   version: process.env.NEXT_PUBLIC_API_VERSION || 'v1',
   
   endpoints: {
@@ -127,36 +99,17 @@ export const API_CONFIG = {
   },
 } as const;
 
-/**
- * Build URL for USER SERVICE / USER ENDPOINTS
- * These endpoints are handled by the gateway service at /api/* (NOT /api/v1/*)
- * Use for: /users/*, /roles, /allowlist, /login, /register, /auth/*, /oauth/*
- * 
- * @param endpoint - Resource path (will be prefixed with /api)
- * @returns Full URL: /api/{endpoint}
- * 
- * @example
- * buildUserServiceUrl('/users/verify-admin') → '/api/users/verify-admin'
- * buildUserServiceUrl('/roles') → '/api/roles'
- */
-export const buildUserServiceUrl = (endpoint: string): string => {
-  const baseUrl = API_CONFIG.baseUrl;
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${baseUrl}${cleanEndpoint}`;  // /api/users/verify-admin (no /v1)
-};
 
 /**
- * Build URL for BACKEND v1 API endpoints
- * Backend endpoints are proxied to backend services at /api/v1/* 
- * All endpoints in API_CONFIG.endpoints.* should use this.
- * Use for: teams, pis, transcripts, agent-jobs, team-ai-cards, settings, etc.
+ * Build URL for backend API endpoints
+ * Always returns relative paths like /api/v1/{endpoint}
+ * Next.js rewrites handle routing to the actual backend server
  * 
  * @param endpoint - Resource path (will be prefixed with /api/v1)
  * @returns Full URL: /api/v1/{endpoint}
  * 
  * @example
  * buildBackendUrl('/teams/getNames') → '/api/v1/teams/getNames'
- * buildBackendUrl(API_CONFIG.endpoints.teams.getNames) → '/api/v1/teams/getNames'
  */
 export const buildBackendUrl = (endpoint: string): string => {
   const baseUrl = API_CONFIG.baseUrl;
@@ -165,28 +118,8 @@ export const buildBackendUrl = (endpoint: string): string => {
   // Ensure endpoint starts with /
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
-  // Build versioned path: /v1/teams/getNames
-  const versionedPath = `/${version}${cleanEndpoint}`;
-  
-  // Check if we're actually on localhost (not just BYPASS_AUTH enabled)
-  const isLocalhost = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || 
-     window.location.hostname === '127.0.0.1');
-  
-  // Check if baseUrl is a full URL (starts with http:// or https://)
-  const isFullUrl = typeof baseUrl === 'string' && /^https?:\/\//.test(baseUrl);
-  
-  if (shouldBypassGateway() && (isLocalhost || isFullUrl)) {
-    // Bypass mode (direct backend): add /api prefix to full URL
-    // Result: http://localhost:8000/api/v1/teams/getNames or https://backend/api/v1/...
-    return `${baseUrl}/api${versionedPath}`;
-  } else {
-    // Gateway mode: use Next.js rewrite with relative path
-    // Next.js rewrite will send /api/v1/... to backend/:path* (no /api in rewrite)
-    // Backend should receive /v1/... and add /api itself if needed
-    // Result: /api/v1/teams/getNames
-    return `${baseUrl}${versionedPath}`;
-  }
+  // Build versioned path: /api/v1/teams/getNames
+  return `${baseUrl}/${version}${cleanEndpoint}`;
 };
 
 // Type definitions for API responses

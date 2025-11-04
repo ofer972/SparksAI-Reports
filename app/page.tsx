@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAccessToken, refreshAccessToken, clearTokens, getCurrentUser, logout } from '@/lib/auth';
+// No auth imports needed
 import EpicsHierarchyPage from '@/components/hierarchy-table/EpicsHierarchyPage';
 import FlowStatusDurationPage from '@/components/flow-status-duration/FlowStatusDurationPage';
 import SprintPredictabilityPage from '@/components/sprint-predictability/SprintPredictabilityPage';
@@ -14,31 +14,9 @@ export default function Home() {
   const [authChecked, setAuthChecked] = useState(false);
   
   useEffect(() => {
-    // Bypass auth check on localhost or when BYPASS_AUTH is enabled
-    const isLocalhost = typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || 
-       window.location.hostname === '127.0.0.1');
-    const bypassAuthEnabled = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
-    
-    if (isLocalhost || bypassAuthEnabled) {
-      setAuthChecked(true);
-      return;
-    }
-
-    (async () => {
-      const token = getAccessToken();
-      async function goLogin() {
-        clearTokens();
-        try { router.replace('/login'); } catch {}
-        if (typeof window !== 'undefined') window.location.assign('/login');
-      }
-      if (!token) {
-        const ok = await refreshAccessToken();
-        if (!ok) return goLogin();
-      }
-      setAuthChecked(true);
-    })();
-  }, [router]);
+    // No authentication needed - set as checked immediately
+    setAuthChecked(true);
+  }, []);
 
   const [activeNavItem, setActiveNavItem] = useState('report-one');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -209,26 +187,7 @@ export default function Home() {
             {/* Right side: user info */}
             <div className="flex items-center space-x-2 md:space-x-4 flex-1 justify-end">
               <div className="flex items-center space-x-3 text-sm text-gray-700">
-                {(() => {
-                  const u = getCurrentUser();
-                  if (!u) return <span>Signed in</span>;
-                  const fullName = (u.name || '').trim();
-                  const firstName = fullName ? fullName.split(/\s+/)[0] : (u.email ? String(u.email).split('@')[0] : 'Signed in');
-                  const desktopLabel = u.name && u.email ? `${u.name} (${u.email})` : (u.name || u.email || 'Signed in');
-                  return (
-                    <>
-                      {/* Mobile: first name only, no email */}
-                      <span className="md:hidden truncate max-w-[120px]" title={fullName || ''}>{firstName}</span>
-                      {/* Desktop: name (email) */}
-                      <span className="hidden md:inline" title={u.email || ''}>{desktopLabel}</span>
-                    </>
-                  );
-                })()}
-                <button
-                  onClick={() => { logout(); try { location.assign('/login'); } catch {} }}
-                  className="px-2 py-1 border rounded hover:bg-gray-50"
-                  title="Logout"
-                >Logout</button>
+                <span>Reports Dashboard</span>
               </div>
             </div>
           </div>
