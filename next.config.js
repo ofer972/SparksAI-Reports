@@ -20,9 +20,9 @@ const nextConfig = {
     return [
       {
         // Rewrite /api/:path* to backend/api/:path*
+        // Backend expects /api/v1/... format
         // When request is /api/v1/issues/..., :path* captures "v1/issues/..."
-        // Destination: ${backendUrl}/api/v1/issues/...
-        // Note: This ensures /api is preserved in the destination URL
+        // Destination must be: ${backendUrl}/api/v1/issues/...
         source: '/api/:path*',
         destination: `${cleanBackendUrl}/api/:path*`,
       },
