@@ -1,30 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ApiService } from '@/lib/api';
 import { IssuesByTeam } from '@/lib/config';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Bar } from 'react-chartjs-2';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ChartDataLabels
-);
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from 'recharts';
 
 interface BugsByTeamBarChartProps {
   onError?: (error: string) => void;
@@ -73,7 +52,7 @@ export default function BugsByTeamBarChart({ onError }: BugsByTeamBarChartProps)
   }, []);
 
   // Get all unique priorities across all teams
-  const getAllPriorities = (): string[] => {
+  const getAllPriorities = useMemo(() => {
     const prioritySet = new Set<string>();
     data.forEach(team => {
       team.priorities.forEach(p => {
@@ -81,119 +60,66 @@ export default function BugsByTeamBarChart({ onError }: BugsByTeamBarChartProps)
       });
     });
     return Array.from(prioritySet).sort();
-  };
+  }, [data]);
 
-  // Generate color for priority (same as pie chart)
-  const getPriorityColor = (priority: string, allPriorities: string[]): string => {
-    const colorPalette = [
-      'rgba(153, 27, 27, 0.8)',    // Dark Red
-      'rgba(251, 191, 36, 0.8)',   // Yellow/Amber
-      'rgba(125, 211, 252, 0.8)',  // Light Blue
-      'rgba(59, 130, 246, 0.8)',   // Blue
-      'rgba(168, 85, 247, 0.8)',   // Purple
-      'rgba(236, 72, 153, 0.8)',   // Pink
-      'rgba(249, 115, 22, 0.8)',   // Orange
-      'rgba(20, 184, 166, 0.8)',   // Teal
-      'rgba(139, 92, 246, 0.8)',   // Indigo
-      'rgba(14, 165, 233, 0.8)',   // Sky
-    ];
-    const index = allPriorities.indexOf(priority);
+  // Color palette (same as pie chart)
+  const colorPalette = [
+    '#991b1b',    // Dark Red
+    '#fbbf24',    // Yellow/Amber
+    '#7dd3fc',    // Light Blue
+    '#3b82f6',    // Blue
+    '#a855f7',    // Purple
+    '#ec4899',    // Pink
+    '#f97316',    // Orange
+    '#14b8a6',    // Teal
+    '#8b5cf6',    // Indigo
+    '#0ea5e9',    // Sky
+  ];
+
+  const getPriorityColor = (priority: string): string => {
+    const index = getAllPriorities.indexOf(priority);
     return colorPalette[index % colorPalette.length];
   };
 
   // Prepare chart data for stacked bar chart
-  const prepareChartData = () => {
-    const allPriorities = getAllPriorities();
-    const teamNames = data.map(team => team.team_name);
-
-    // Create datasets for each priority
-    const datasets = allPriorities.map(priority => {
-      const priorityData = teamNames.map(teamName => {
-        const team = data.find(t => t.team_name === teamName);
-        const priorityItem = team?.priorities.find(p => p.priority === priority);
-        return priorityItem?.issue_count || 0;
-      });
-
-      return {
-        label: priority,
-        data: priorityData,
-        backgroundColor: getPriorityColor(priority, allPriorities),
-        borderColor: getPriorityColor(priority, allPriorities).replace('0.8', '1'),
-        borderWidth: 1,
+  const chartData = useMemo(() => {
+    return data.map(team => {
+      const teamData: any = {
+        team_name: team.team_name,
+        total_issues: team.total_issues,
       };
+      
+      getAllPriorities.forEach(priority => {
+        const priorityItem = team.priorities.find(p => p.priority === priority);
+        teamData[priority] = priorityItem?.issue_count || 0;
+      });
+      
+      return teamData;
     });
+  }, [data, getAllPriorities]);
 
-    return {
-      labels: teamNames,
-      datasets,
-    };
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-900 mb-2">{payload[0].payload.team_name}</p>
+          {payload.map((entry: any, index: number) => {
+            if (entry.value > 0) {
+              return (
+                <p key={index} className="text-sm" style={{ color: entry.color }}>
+                  {entry.name}: {entry.value}
+                </p>
+              );
+            }
+            return null;
+          })}
+        </div>
+      );
+    }
+    return null;
   };
 
-  const chartData = prepareChartData();
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: true,
-        position: 'right' as const,
-        labels: {
-          padding: 15,
-          font: {
-            size: 11,
-          },
-        },
-      },
-      tooltip: {
-        mode: 'index' as const,
-        intersect: false,
-        callbacks: {
-          label: function(context: any) {
-            const label = context.dataset.label || '';
-            const value = context.parsed.y || 0;
-            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
-            return `${label}: ${value}`;
-          },
-        },
-      },
-      datalabels: {
-        display: true,
-        color: '#000000',
-        font: {
-          weight: 'bold' as const,
-          size: 11,
-        },
-        formatter: (value: number) => {
-          return value > 0 ? value.toString() : '';
-        },
-        anchor: 'center' as const,
-        align: 'center' as const,
-      },
-      title: {
-        display: false,
-      },
-    },
-    scales: {
-      x: {
-        stacked: true,
-        ticks: {
-          font: {
-            size: 11,
-          },
-        },
-      },
-      y: {
-        stacked: true,
-        beginAtZero: true,
-        ticks: {
-          font: {
-            size: 11,
-          },
-        },
-      },
-    },
-  };
 
   if (loading) {
     return (
@@ -237,9 +163,63 @@ export default function BugsByTeamBarChart({ onError }: BugsByTeamBarChartProps)
     <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Bugs by Team</h2>
       <div className="h-72 w-full">
-        <Bar data={chartData} options={chartOptions} />
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData}
+            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="team_name" />
+            <YAxis />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend
+              verticalAlign="top"
+              align="right"
+              iconType="circle"
+            />
+            {getAllPriorities.map((priority, index) => (
+              <Bar
+                key={priority}
+                dataKey={priority}
+                stackId="a"
+                fill={getPriorityColor(priority)}
+                isAnimationActive={false}
+              >
+                <LabelList
+                  dataKey={priority}
+                  position="center"
+                  fill="black"
+                  content={(props: any) => {
+                    const { value, x, y, width, height, payload, index: dataIndex } = props;
+                    if (!value || value === 0) {
+                      return null;
+                    }
+                    
+                    // Access the full data entry to get total_issues
+                    const teamData = chartData[dataIndex];
+                    const teamTotal = teamData?.total_issues || 0;
+                    const percentage = teamTotal > 0 ? ((value / teamTotal) * 100).toFixed(1) : '0';
+                    
+                    return (
+                      <text
+                        x={x + width / 2}
+                        y={y + height / 2}
+                        fill="#000000"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize={11}
+                        fontWeight="bold"
+                      >
+                        {value} ({percentage}%)
+                      </text>
+                    );
+                  }}
+                />
+              </Bar>
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
 }
-

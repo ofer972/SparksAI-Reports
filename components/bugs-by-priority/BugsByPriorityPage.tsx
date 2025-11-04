@@ -1,25 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ApiService } from '@/lib/api';
 import { IssueByPriority } from '@/lib/config';
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Pie } from 'react-chartjs-2';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import BugsByTeamBarChart from './BugsByTeamBarChart';
-
-// Register Chart.js components
-ChartJS.register(
-  ArcElement,
-  Tooltip,
-  Legend,
-  ChartDataLabels
-);
 
 export default function BugsByPriorityPage() {
   const [data, setData] = useState<IssueByPriority[]>([]);
@@ -60,99 +45,101 @@ export default function BugsByPriorityPage() {
   }, []);
 
   // Deduplicate and merge priorities with the same name
-  const processedData = data.reduce((acc, item) => {
-    const existing = acc.find(p => p.priority.toLowerCase() === item.priority.toLowerCase());
-    if (existing) {
-      existing.issue_count += item.issue_count;
-    } else {
-      acc.push({ ...item });
-    }
-    return acc;
-  }, [] as IssueByPriority[]);
+  const processedData = useMemo(() => {
+    return data.reduce((acc, item) => {
+      const existing = acc.find(p => p.priority.toLowerCase() === item.priority.toLowerCase());
+      if (existing) {
+        existing.issue_count += item.issue_count;
+      } else {
+        acc.push({ ...item });
+      }
+      return acc;
+    }, [] as IssueByPriority[]);
+  }, [data]);
 
   // Generate dynamic colors for priorities
-  const generateColors = (count: number): { background: string[], border: string[] } => {
-    // Color palette with distinct colors
-    const colorPalette = [
-      { bg: 'rgba(153, 27, 27, 0.8)', border: 'rgba(153, 27, 27, 1)' },    // Dark Red
-      { bg: 'rgba(251, 191, 36, 0.8)', border: 'rgba(251, 191, 36, 1)' },   // Yellow/Amber
-      { bg: 'rgba(125, 211, 252, 0.8)', border: 'rgba(125, 211, 252, 1)' }, // Light Blue
-      { bg: 'rgba(59, 130, 246, 0.8)', border: 'rgba(59, 130, 246, 1)' },  // Blue
-      { bg: 'rgba(168, 85, 247, 0.8)', border: 'rgba(168, 85, 247, 1)' },  // Purple
-      { bg: 'rgba(236, 72, 153, 0.8)', border: 'rgba(236, 72, 153, 1)' },   // Pink
-      { bg: 'rgba(249, 115, 22, 0.8)', border: 'rgba(249, 115, 22, 1)' },  // Orange
-      { bg: 'rgba(20, 184, 166, 0.8)', border: 'rgba(20, 184, 166, 1)' },  // Teal
-      { bg: 'rgba(139, 92, 246, 0.8)', border: 'rgba(139, 92, 246, 1)' },  // Indigo
-      { bg: 'rgba(14, 165, 233, 0.8)', border: 'rgba(14, 165, 233, 1)' },  // Sky
-    ];
+  const colorPalette = [
+    '#991b1b',    // Dark Red
+    '#fbbf24',    // Yellow/Amber
+    '#7dd3fc',    // Light Blue
+    '#3b82f6',    // Blue
+    '#a855f7',    // Purple
+    '#ec4899',    // Pink
+    '#f97316',    // Orange
+    '#14b8a6',    // Teal
+    '#8b5cf6',    // Indigo
+    '#0ea5e9',    // Sky
+  ];
 
-    const backgroundColors: string[] = [];
-    const borderColors: string[] = [];
+  const getColor = (index: number) => {
+    return colorPalette[index % colorPalette.length];
+  };
 
-    for (let i = 0; i < count; i++) {
-      // Use modulo to cycle through colors if we have more priorities than colors
-      const colorIndex = i % colorPalette.length;
-      backgroundColors.push(colorPalette[colorIndex].bg);
-      borderColors.push(colorPalette[colorIndex].border);
+  // Prepare chart data for Recharts
+  const chartData = useMemo(() => {
+    const total = processedData.reduce((sum, item) => sum + item.issue_count, 0);
+    return processedData.map((item, index) => ({
+      name: item.priority,
+      value: item.issue_count,
+      percentage: total > 0 ? ((item.issue_count / total) * 100).toFixed(1) : '0',
+      color: getColor(index),
+    }));
+  }, [processedData]);
+
+  // Custom label function for external labels with connectors
+  const renderCustomLabel = ({
+    cx, cy, midAngle, innerRadius, outerRadius, percent, value, name
+  }: any) => {
+    const RADIAN = Math.PI / 180;
+    // Start connector from outer edge of pie (not from middle) - this makes connector shorter
+    const x = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+    const y = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+    // Label position - make connector SHORT by keeping label close to pie edge
+    const labelX = cx + (outerRadius + 8) * Math.cos(-midAngle * RADIAN);
+    const labelY = cy + (outerRadius + 8) * Math.sin(-midAngle * RADIAN);
+    const percentage = (percent * 100).toFixed(1);
+
+    return (
+      <g>
+        {/* Connector line - SHORT because it starts from pie edge and label is close */}
+        <line
+          x1={x}
+          y1={y}
+          x2={labelX}
+          y2={labelY}
+          stroke="#374151"
+          strokeWidth={1}
+        />
+        {/* Label text */}
+        <text
+          x={labelX}
+          y={labelY}
+          fill="#000000"
+          textAnchor={labelX > cx ? 'start' : 'end'}
+          dominantBaseline="central"
+          fontSize={13}
+          fontWeight="bold"
+        >
+          {value} ({percentage}%)
+        </text>
+      </g>
+    );
+  };
+
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-900">{data.name}</p>
+          <p className="text-sm text-gray-600">
+            {data.value} ({data.percentage}%)
+          </p>
+        </div>
+      );
     }
-
-    return { background: backgroundColors, border: borderColors };
-  };
-
-  // Generate colors dynamically based on number of priorities
-  const colors = generateColors(processedData.length);
-
-  // Prepare chart data
-  const chartData = {
-    labels: processedData.map(item => item.priority),
-    datasets: [
-      {
-        label: 'Number of Bugs',
-        data: processedData.map(item => item.issue_count),
-        backgroundColor: colors.background,
-        borderColor: colors.border,
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: true,
-        position: 'right' as const,
-        labels: {
-          padding: 20,
-          font: {
-            size: 12,
-          },
-        },
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context: any) {
-            const label = context.label || '';
-            const value = context.parsed || 0;
-            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
-            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
-            return `${label}: ${value} (${percentage}%)`;
-          },
-        },
-      },
-      datalabels: {
-        display: true,
-        color: '#000000',
-        font: {
-          weight: 'bold' as const,
-          size: 13,
-        },
-        formatter: (value: number) => {
-          return value.toString();
-        },
-      },
-    },
+    return null;
   };
 
   return (
@@ -190,7 +177,31 @@ export default function BugsByPriorityPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Open Bugs by Priority</h2>
             <div className="h-72 w-full max-w-[450px]">
               {processedData.length > 0 ? (
-                <Pie data={chartData} options={chartOptions} />
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={renderCustomLabel}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend
+                      verticalAlign="middle"
+                      align="right"
+                      layout="vertical"
+                      iconType="circle"
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               ) : (
                 <div className="h-full flex items-center justify-center text-gray-500">
                   No data available
@@ -206,4 +217,3 @@ export default function BugsByPriorityPage() {
     </div>
   );
 }
-
