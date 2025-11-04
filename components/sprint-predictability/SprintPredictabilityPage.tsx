@@ -10,7 +10,7 @@ import {
   SortingState,
 } from '@tanstack/react-table';
 import { ApiService } from '@/lib/api';
-import { SprintPredictabilityItem } from '@/lib/config';
+import { SprintPredictabilityItem, getCleanJiraUrl } from '@/lib/config';
 
 export default function SprintPredictabilityPage() {
   const [data, setData] = useState<SprintPredictabilityItem[]>([]);
@@ -74,7 +74,7 @@ export default function SprintPredictabilityPage() {
       cell: ({ getValue }) => {
         const value = getValue() as string;
         return (
-          <div className="text-sm text-gray-900">
+          <div className="text-sm text-gray-900 font-medium">
             {value || '-'}
           </div>
         );
@@ -83,10 +83,10 @@ export default function SprintPredictabilityPage() {
     {
       accessorKey: 'sprint_predictability',
       header: 'SPRINT PREDICTABILITY %',
-      size: 120,
+      size: 100,
       cell: ({ getValue }) => {
         const value = getValue() as number;
-        // Convert integer to percentage (multiply by 100)
+        // sprint_predictability is a decimal (0-1), multiply by 100 to get percentage
         const percentValue = typeof value === 'number' ? value * 100 : 0;
         const formatted = percentValue.toFixed(1);
         const isGreen = percentValue >= 75;
@@ -113,27 +113,52 @@ export default function SprintPredictabilityPage() {
       },
     },
     {
-      accessorKey: 'sprint_official_start_date',
-      header: 'START DATE',
-      size: 110,
+      accessorKey: 'issues_not_completed',
+      header: 'ISSUES NOT COMPLETED',
+      size: 100,
       cell: ({ getValue }) => {
-        const value = getValue() as string;
+        const value = getValue() as number;
         return (
-          <div className="text-sm text-gray-900">
-            {value || '-'}
+          <div className="text-sm text-gray-900 text-center">
+            {value !== undefined && value !== null ? value : '-'}
           </div>
         );
       },
     },
     {
-      accessorKey: 'sprint_official_end_date',
-      header: 'END DATE',
-      size: 110,
-      cell: ({ getValue }) => {
-        const value = getValue() as string;
+      id: 'jira_link',
+      header: 'NOT COMPLETED ISSUES',
+      size: 140,
+      cell: ({ row }) => {
+        const item = row.original;
+        const issueKeys = item.issues_not_completed_keys || [];
+        
+        if (!issueKeys || issueKeys.length === 0) {
+          return (
+            <div className="text-sm text-gray-500 text-center">
+              -
+            </div>
+          );
+        }
+
+        const handleClick = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          const cleanJiraUrl = getCleanJiraUrl();
+          // Construct Jira JQL search URL for multiple issue keys
+          // Format: key IN (KEY1, KEY2, KEY3)
+          const keysParam = issueKeys.join(', ');
+          const jqlQuery = `key IN (${keysParam})`;
+          const encodedJql = encodeURIComponent(jqlQuery);
+          const jiraLink = `${cleanJiraUrl}/issues/?jql=${encodedJql}`;
+          window.open(jiraLink, '_blank');
+        };
+
         return (
-          <div className="text-sm text-gray-900">
-            {value || '-'}
+          <div
+            className="text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer text-center"
+            onClick={handleClick}
+          >
+{issueKeys.length} issue{issueKeys.length !== 1 ? 's' : ''}
           </div>
         );
       },
@@ -226,8 +251,8 @@ export default function SprintPredictabilityPage() {
 
       {/* Table */}
       {!loading && !error && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto w-[50%]">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-[50%]">
+          <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
                 {table.getHeaderGroups().map(headerGroup => (
@@ -235,7 +260,9 @@ export default function SprintPredictabilityPage() {
                     {headerGroup.headers.map(header => {
                       const isPredictability = header.id === 'sprint_predictability';
                       const isCycleTime = header.id === 'avg_story_cycle_time';
-                      const isCenterAligned = isPredictability || isCycleTime;
+                      const isIssuesNotCompleted = header.id === 'issues_not_completed';
+                      const isJiraLink = header.id === 'jira_link';
+                      const isCenterAligned = isPredictability || isCycleTime || isIssuesNotCompleted || isJiraLink;
                       
                       return (
                         <th
@@ -287,7 +314,9 @@ export default function SprintPredictabilityPage() {
                         {row.getVisibleCells().map(cell => {
                           const isPredictability = cell.column.id === 'sprint_predictability';
                           const isCycleTime = cell.column.id === 'avg_story_cycle_time';
-                          const isCenterAligned = isPredictability || isCycleTime;
+                          const isIssuesNotCompleted = cell.column.id === 'issues_not_completed';
+                          const isJiraLink = cell.column.id === 'jira_link';
+                          const isCenterAligned = isPredictability || isCycleTime || isIssuesNotCompleted || isJiraLink;
                           
                           return (
                             <td

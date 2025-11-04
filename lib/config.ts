@@ -325,10 +325,17 @@ export interface IssueStatusDurationResponse {
 
 export interface SprintPredictabilityItem {
   sprint_name: string;
-  sprint_predictability: number;
-  avg_story_cycle_time: number;
+  sprint_id: string;
   sprint_official_start_date: string;
   sprint_official_end_date: string;
+  avg_story_cycle_time: number;
+  issues_completed_in_sprint: number;
+  total_issues_in_sprint: number;
+  issues_not_completed: number;
+  completed_issue_keys: string[];
+  total_committed_issue_keys: string[];
+  issues_not_completed_keys: string[];
+  sprint_predictability: number;
 }
 
 export interface SprintPredictabilityResponse {

@@ -22,9 +22,9 @@ const nextConfig = {
         // Rewrite /api/:path* to backend/api/:path*
         // Backend expects /api/v1/... format
         // When request is /api/v1/issues/..., :path* captures "v1/issues/..."
-        // Destination must be: ${backendUrl}/api/v1/issues/...
+        // Using string concatenation to ensure :path* is preserved correctly
         source: '/api/:path*',
-        destination: `${cleanBackendUrl}/api/:path*`,
+        destination: cleanBackendUrl + '/api/:path*',
       },
     ];
   },
