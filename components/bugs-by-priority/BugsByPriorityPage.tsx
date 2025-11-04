@@ -199,6 +199,7 @@ export default function BugsByPriorityPage() {
                       align="right"
                       layout="vertical"
                       iconType="circle"
+                      wrapperStyle={{ fontSize: '12px' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>

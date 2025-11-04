@@ -174,8 +174,9 @@ export default function BugsByTeamBarChart({ onError }: BugsByTeamBarChartProps)
             <Tooltip content={<CustomTooltip />} />
             <Legend
               verticalAlign="top"
-              align="right"
+              align="center"
               iconType="circle"
+              wrapperStyle={{ fontSize: '12px' }}
             />
             {getAllPriorities.map((priority, index) => (
               <Bar
