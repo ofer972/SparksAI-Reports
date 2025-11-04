@@ -1,0 +1,46 @@
+===========================================
+RAILWAY ENVIRONMENT VARIABLES
+Copy and paste these into Railway Variables
+===========================================
+
+NEXT_PUBLIC_API_BASE_URL=/api
+INTERNAL_BACKEND_URL=https://sparksai-backend-production.up.railway.app
+NEXT_PUBLIC_API_VERSION=v1
+NEXT_PUBLIC_JIRA_URL=https://argus-sec.atlassian.net/
+NEXT_PUBLIC_BYPASS_AUTH=true
+
+===========================================
+NOTES:
+===========================================
+
+1. NEXT_PUBLIC_API_BASE_URL:
+   - Use "/api" if using Next.js rewrites (recommended)
+   - OR use full backend URL like "https://your-backend.railway.app" if direct connection
+
+2. INTERNAL_BACKEND_URL:
+   - Replace "sparksai-backend-production.up.railway.app" with your actual backend URL
+   - This is used by Next.js server-side rewrites
+   - Must be a full URL starting with http:// or https://
+
+3. NEXT_PUBLIC_JIRA_URL:
+   - Replace with your actual Jira instance URL
+   - Should end with a trailing slash "/"
+
+4. NEXT_PUBLIC_BYPASS_AUTH:
+   - Set to "true" to bypass all authentication (temporary app)
+   - Set to "false" or omit to enable authentication
+
+===========================================
+ALTERNATIVE: Direct Backend URL (No Rewrites)
+===========================================
+
+If you want to use direct backend URL instead of Next.js rewrites:
+
+NEXT_PUBLIC_API_BASE_URL=https://sparksai-backend-production.up.railway.app
+INTERNAL_BACKEND_URL=https://sparksai-backend-production.up.railway.app
+NEXT_PUBLIC_API_VERSION=v1
+NEXT_PUBLIC_JIRA_URL=https://argus-sec.atlassian.net/
+NEXT_PUBLIC_BYPASS_AUTH=true
+
+===========================================
+

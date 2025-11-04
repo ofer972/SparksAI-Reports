@@ -116,7 +116,7 @@ export default function FlowStatusDurationPage() {
         },
         font: {
           size: 12,
-          weight: '600' as const,
+          weight: 'bold' as const,
         },
         color: '#374151',
         padding: {
