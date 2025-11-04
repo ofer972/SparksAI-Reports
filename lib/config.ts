@@ -19,8 +19,10 @@ const getBaseUrl = () => {
     if (isLocalhost) {
       return process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
     }
-    // In production with BYPASS_AUTH, use API_BASE_URL (should be /api for rewrites)
-    return process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
+    // In production with BYPASS_AUTH, bypass gateway and use direct backend URL
+    // Use INTERNAL_BACKEND_URL converted to NEXT_PUBLIC for client-side access
+    // Note: This requires NEXT_PUBLIC_BACKEND_URL to be set for client-side bypass
+    return process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
   }
   return process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 };
@@ -171,13 +173,17 @@ export const buildBackendUrl = (endpoint: string): string => {
     (window.location.hostname === 'localhost' || 
      window.location.hostname === '127.0.0.1');
   
-  if (shouldBypassGateway() && isLocalhost) {
-    // Bypass mode (direct backend on localhost): add /api prefix to full URL
-    // Result: http://localhost:8000/api/v1/teams/getNames
+  // Check if baseUrl is a full URL (starts with http:// or https://)
+  const isFullUrl = typeof baseUrl === 'string' && /^https?:\/\//.test(baseUrl);
+  
+  if (shouldBypassGateway() && (isLocalhost || isFullUrl)) {
+    // Bypass mode (direct backend): add /api prefix to full URL
+    // Result: http://localhost:8000/api/v1/teams/getNames or https://backend/api/v1/...
     return `${baseUrl}/api${versionedPath}`;
   } else {
-    // Gateway mode or BYPASS_AUTH on production: use Next.js rewrite
-    // Next.js rewrite will send /api/v1/... to backend/api/v1/...
+    // Gateway mode: use Next.js rewrite with relative path
+    // Next.js rewrite will send /api/v1/... to backend/:path* (no /api in rewrite)
+    // Backend should receive /v1/... and add /api itself if needed
     // Result: /api/v1/teams/getNames
     return `${baseUrl}${versionedPath}`;
   }
