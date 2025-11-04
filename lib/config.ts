@@ -166,12 +166,18 @@ export const buildBackendUrl = (endpoint: string): string => {
   // Build versioned path: /v1/teams/getNames
   const versionedPath = `/${version}${cleanEndpoint}`;
   
-  if (shouldBypassGateway()) {
-    // Bypass mode (direct backend): add /api prefix
+  // Check if we're actually on localhost (not just BYPASS_AUTH enabled)
+  const isLocalhost = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || 
+     window.location.hostname === '127.0.0.1');
+  
+  if (shouldBypassGateway() && isLocalhost) {
+    // Bypass mode (direct backend on localhost): add /api prefix to full URL
     // Result: http://localhost:8000/api/v1/teams/getNames
     return `${baseUrl}/api${versionedPath}`;
   } else {
-    // Gateway mode: Next.js rewrite preserves /api, builds normal path
+    // Gateway mode or BYPASS_AUTH on production: use Next.js rewrite
+    // Next.js rewrite will send /api/v1/... to backend/api/v1/...
     // Result: /api/v1/teams/getNames
     return `${baseUrl}${versionedPath}`;
   }
