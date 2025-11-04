@@ -14,13 +14,13 @@ export default function Home() {
   const [authChecked, setAuthChecked] = useState(false);
   
   useEffect(() => {
-    // Bypass auth check on localhost (127.0.0.1 also works)
+    // Bypass auth check on localhost or when BYPASS_AUTH is enabled
     const isLocalhost = typeof window !== 'undefined' && 
       (window.location.hostname === 'localhost' || 
-       window.location.hostname === '127.0.0.1' ||
-       process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true');
+       window.location.hostname === '127.0.0.1');
+    const bypassAuthEnabled = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
     
-    if (isLocalhost) {
+    if (isLocalhost || bypassAuthEnabled) {
       setAuthChecked(true);
       return;
     }

@@ -44,12 +44,12 @@ const nativeFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Resp
 let refreshPromise: Promise<boolean> | null = null;
 
 export async function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  // Detect localhost and bypass settings (auto-bypass on localhost)
+  // Detect localhost and bypass settings (auto-bypass on localhost or when BYPASS_AUTH is enabled)
   const isLocalhost = typeof window !== 'undefined' && 
     (window.location.hostname === 'localhost' || 
-     window.location.hostname === '127.0.0.1' ||
-     process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true');
-  const bypassAuth = isLocalhost;
+     window.location.hostname === '127.0.0.1');
+  const bypassAuthEnabled = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
+  const bypassAuth = isLocalhost || bypassAuthEnabled;
   
   const doFetch = async () => {
     const headers = bypassAuth 

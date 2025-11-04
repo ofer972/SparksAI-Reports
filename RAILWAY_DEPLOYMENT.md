@@ -40,7 +40,7 @@ In your Railway project dashboard, go to **Variables** and add the following:
 | Variable Name | Description | Default Value |
 |--------------|-------------|---------------|
 | `NEXT_PUBLIC_BACKEND_URL` | Direct backend URL (for localhost bypass) | `http://localhost:8000` |
-| `NEXT_PUBLIC_BYPASS_AUTH` | Set to `'true'` to bypass authentication | `false` |
+| `NEXT_PUBLIC_BYPASS_AUTH` | Set to `'true'` to bypass authentication (works on both localhost and Railway) | `false` |
 
 ### Example Configuration
 
@@ -51,6 +51,7 @@ NEXT_PUBLIC_API_BASE_URL=/api
 INTERNAL_BACKEND_URL=https://sparksai-backend-production.up.railway.app
 NEXT_PUBLIC_API_VERSION=v1
 NEXT_PUBLIC_JIRA_URL=https://argus-sec.atlassian.net/
+NEXT_PUBLIC_BYPASS_AUTH=true
 ```
 
 If you want to use direct backend URL (no Next.js proxy):
@@ -60,7 +61,24 @@ NEXT_PUBLIC_API_BASE_URL=https://sparksai-backend-production.up.railway.app
 INTERNAL_BACKEND_URL=https://sparksai-backend-production.up.railway.app
 NEXT_PUBLIC_API_VERSION=v1
 NEXT_PUBLIC_JIRA_URL=https://argus-sec.atlassian.net/
+NEXT_PUBLIC_BYPASS_AUTH=true
 ```
+
+## Step 3.5: Bypass Authentication (Temporary Application)
+
+Since this is a temporary application, you can bypass authentication by setting:
+
+```
+NEXT_PUBLIC_BYPASS_AUTH=true
+```
+
+This will:
+- Skip all authentication checks
+- Skip token refresh logic
+- Allow direct API access without auth headers
+- Work on both localhost and Railway
+
+**Note:** Authentication is automatically bypassed on localhost (localhost and 127.0.0.1) regardless of this setting. Setting `NEXT_PUBLIC_BYPASS_AUTH=true` extends this behavior to Railway as well.
 
 ## Step 4: Deploy
 

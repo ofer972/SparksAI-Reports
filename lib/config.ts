@@ -1,11 +1,11 @@
 // API Configuration
-// Helper to detect if we should bypass auth/gateway (localhost only)
+// Helper to detect if we should bypass auth/gateway (localhost or when BYPASS_AUTH is enabled)
 const shouldBypassGateway = () => {
   if (typeof window === 'undefined') return false; // Server-side: no bypass
   const isLocalhost = window.location.hostname === 'localhost' || 
-                      window.location.hostname === '127.0.0.1' ||
-                      process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
-  return isLocalhost;
+                      window.location.hostname === '127.0.0.1';
+  const bypassAuthEnabled = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
+  return isLocalhost || bypassAuthEnabled;
 };
 
 // Get base URL dynamically (handles localhost bypass)
