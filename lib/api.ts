@@ -22,7 +22,9 @@ import {
   StatusDuration,
   IssueStatusDurationResponse,
   SprintPredictabilityItem,
-  SprintPredictabilityResponse
+  SprintPredictabilityResponse,
+  ReleasePredictabilityItem,
+  ReleasePredictabilityResponse
 } from './config';
 import { getAuthHeaders, refreshAccessToken, clearTokens } from './auth';
 
@@ -567,6 +569,27 @@ export class ApiService {
     
     if (result.success && result.data && result.data.sprint_predictability) {
       return result.data.sprint_predictability;
+    }
+    
+    return [];
+  }
+
+  // Release Predictability API
+  async getReleasePredictability(months: number = 3): Promise<ReleasePredictabilityItem[]> {
+    const params = new URLSearchParams();
+    params.append('months', months.toString());
+    
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.releasePredictability)}?${params}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch release predictability: ${response.statusText}`);
+    }
+
+    const result: ReleasePredictabilityResponse = await response.json();
+    
+    if (result.success && result.data && result.data.release_predictability) {
+      return result.data.release_predictability;
     }
     
     return [];

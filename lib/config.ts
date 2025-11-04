@@ -16,6 +16,17 @@ const getBaseUrl = () => {
   return process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 };
 
+// Get Jira URL
+export const getJiraUrl = (): string => {
+  return process.env.NEXT_PUBLIC_JIRA_URL || 'https://argus-sec.atlassian.net/';
+};
+
+// Helper to build clean Jira URL (remove trailing slash)
+export const getCleanJiraUrl = (): string => {
+  const jiraUrl = getJiraUrl();
+  return jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
+};
+
 export const API_CONFIG = {
   get baseUrl() {
     return getBaseUrl();
@@ -92,12 +103,14 @@ export const API_CONFIG = {
     issues: {
       epicsHierarchy: '/issues/epics-hierarchy',
       issueStatusDuration: '/issues/issue-status-duration',
+      releasePredictability: '/issues/release-predictability',
     },
     
     // Sprints endpoints
     sprints: {
       sprintPredictability: '/sprints/sprint-predictability',
     },
+    
   },
 } as const;
 
@@ -366,6 +379,30 @@ export interface SprintPredictabilityResponse {
   success: boolean;
   data: {
     sprint_predictability: SprintPredictabilityItem[];
+    count: number;
+    months: number;
+  };
+  message: string;
+}
+
+export interface ReleasePredictabilityItem {
+  version_name: string;
+  project_key: string;
+  release_start_date: string;
+  release_date: string;
+  total_epics_in_scope: number;
+  epics_completed: number;
+  epic_percent_completed: number;
+  total_other_issues_in_scope: number;
+  other_issues_completed: number;
+  other_issues_percent_completed: number;
+}
+
+export interface ReleasePredictabilityResponse {
+  success: boolean;
+  data: {
+    release_predictability?: ReleasePredictabilityItem[];
+    releases?: ReleasePredictabilityItem[];
     count: number;
     months: number;
   };

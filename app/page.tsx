@@ -6,6 +6,7 @@ import { getAccessToken, refreshAccessToken, clearTokens, getCurrentUser, logout
 import EpicsHierarchyPage from '@/components/hierarchy-table/EpicsHierarchyPage';
 import FlowStatusDurationPage from '@/components/flow-status-duration/FlowStatusDurationPage';
 import SprintPredictabilityPage from '@/components/sprint-predictability/SprintPredictabilityPage';
+import ReleasePredictabilityPage from '@/components/release-predictability/ReleasePredictabilityPage';
 
 export default function Home() {
   const router = useRouter();
@@ -46,6 +47,7 @@ export default function Home() {
     { id: 'report-one', label: 'Flow Status Duration', icon: '📈' },
     { id: 'report-two', label: 'Epic/Story Hierarchy', icon: '📊' },
     { id: 'report-three', label: 'Sprint Predictability', icon: '📉' },
+    { id: 'report-four', label: 'Release Predictability and Status', icon: '🚀' },
   ];
 
   const renderMainContent = () => {
@@ -56,6 +58,8 @@ export default function Home() {
         return <EpicsHierarchyPage />;
       case 'report-three':
         return <SprintPredictabilityPage />;
+      case 'report-four':
+        return <ReleasePredictabilityPage />;
       default:
         return (
           <div className="bg-white rounded-lg shadow-sm p-6 text-center">

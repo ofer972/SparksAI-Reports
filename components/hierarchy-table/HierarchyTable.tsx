@@ -11,7 +11,7 @@ import {
   Row,
   ExpandedState,
 } from '@tanstack/react-table';
-import { HierarchyItem } from '@/lib/config';
+import { HierarchyItem, getCleanJiraUrl } from '@/lib/config';
 import { TreeNode, ColumnConfig, HierarchyTableProps } from './types';
 import { buildTree, flattenTree, getStatusColor, getTypeColor, getStatusCategoryColor, getProgressColor } from './utils';
 
@@ -109,8 +109,7 @@ export default function HierarchyTable({
             
             // For Key column, build JIRA URL
             if (col.id === 'key' && item.key) {
-              const jiraUrl = process.env.NEXT_PUBLIC_JIRA_URL || 'https://argus-sec.atlassian.net/';
-              const cleanJiraUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
+              const cleanJiraUrl = getCleanJiraUrl();
               linkUrl = `${cleanJiraUrl}/browse/${item.key}`;
             }
             
@@ -121,8 +120,7 @@ export default function HierarchyTable({
                   e.stopPropagation();
                   if (col.id === 'key' && item.key) {
                     // Open JIRA link in new tab
-                    const jiraUrl = process.env.NEXT_PUBLIC_JIRA_URL || 'https://argus-sec.atlassian.net/';
-                    const cleanJiraUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
+                    const cleanJiraUrl = getCleanJiraUrl();
                     window.open(`${cleanJiraUrl}/browse/${item.key}`, '_blank');
                   } else if (onRowClick) {
                     onRowClick(item);
