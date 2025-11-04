@@ -105,6 +105,7 @@ export const API_CONFIG = {
       issueStatusDuration: '/issues/issue-status-duration',
       releasePredictability: '/issues/release-predictability',
       issuesGroupedByPriority: '/issues/issues-grouped-by-priority',
+      issuesGroupedByTeam: '/issues/issues-grouped-by-team',
     },
     
     // Sprints endpoints
@@ -419,6 +420,26 @@ export interface IssuesByPriorityResponse {
   success: boolean;
   data: {
     issues_by_priority: IssueByPriority[];
+    count: number;
+  };
+  message: string;
+}
+
+export interface PriorityCount {
+  priority: string;
+  issue_count: number;
+}
+
+export interface IssuesByTeam {
+  team_name: string;
+  priorities: PriorityCount[];
+  total_issues: number;
+}
+
+export interface IssuesByTeamResponse {
+  success: boolean;
+  data: {
+    issues_by_team: IssuesByTeam[];
     count: number;
   };
   message: string;

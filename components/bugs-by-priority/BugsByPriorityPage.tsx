@@ -11,6 +11,7 @@ import {
 } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import BugsByTeamBarChart from './BugsByTeamBarChart';
 
 // Register Chart.js components
 ChartJS.register(
@@ -181,19 +182,25 @@ export default function BugsByPriorityPage() {
         </div>
       )}
 
-      {/* Chart */}
+      {/* Charts */}
       {!loading && !error && (
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Open Bugs by Priority</h2>
-          <div className="h-72 w-full max-w-[450px]">
-            {processedData.length > 0 ? (
-              <Pie data={chartData} options={chartOptions} />
-            ) : (
-              <div className="h-full flex items-center justify-center text-gray-500">
-                No data available
-              </div>
-            )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Pie Chart */}
+          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Open Bugs by Priority</h2>
+            <div className="h-72 w-full max-w-[450px]">
+              {processedData.length > 0 ? (
+                <Pie data={chartData} options={chartOptions} />
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-500">
+                  No data available
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Bar Chart */}
+          <BugsByTeamBarChart />
         </div>
       )}
     </div>
