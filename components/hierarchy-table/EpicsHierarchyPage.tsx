@@ -111,8 +111,8 @@ export default function EpicsHierarchyPage() {
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-[200px]">
             <label htmlFor="team-name" className="block text-sm font-medium text-gray-700 mb-1">
               Team Name
             </label>
@@ -122,11 +122,11 @@ export default function EpicsHierarchyPage() {
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
               placeholder="Enter team name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           
-          <div>
+          <div className="w-[200px]">
             <label htmlFor="pi-name" className="block text-sm font-medium text-gray-700 mb-1">
               PI Name
             </label>
@@ -136,15 +136,15 @@ export default function EpicsHierarchyPage() {
               value={piName}
               onChange={(e) => setPiName(e.target.value)}
               placeholder="Enter PI name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          <div className="flex items-end">
+          <div>
             <button
               onClick={fetchData}
               disabled={loading}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Loading...' : 'Apply Filters'}
             </button>

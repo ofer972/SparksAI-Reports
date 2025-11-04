@@ -153,7 +153,7 @@ export default function FlowStatusDurationPage() {
           minRotation: 45,
           font: {
             size: 13,
-            weight: '500' as const,
+            weight: 'bold' as const,
           },
         },
       },

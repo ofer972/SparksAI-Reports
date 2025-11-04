@@ -41,7 +41,7 @@ export default function HierarchyTable({
   const expandedKeys = useMemo(() => {
     const keys = new Set<string>();
     Object.keys(expanded).forEach(key => {
-      if (expanded[key]) {
+      if ((expanded as Record<string, boolean>)[key]) {
         keys.add(key);
       }
     });
@@ -56,8 +56,8 @@ export default function HierarchyTable({
   // Toggle row expansion
   const toggleExpanded = useCallback((key: string) => {
     setExpanded(prev => ({
-      ...prev,
-      [key]: !prev[key],
+      ...(prev as Record<string, boolean>),
+      [key]: !(prev as Record<string, boolean>)[key],
     }));
   }, []);
 
@@ -180,7 +180,7 @@ export default function HierarchyTable({
             return (
               <div style={{ paddingLeft: `${level * 20}px` }}>
                 <span className={badgeClass}>
-                  {value || '-'}
+                  {String(value || '-')}
                 </span>
               </div>
             );
@@ -283,7 +283,7 @@ export default function HierarchyTable({
       cell: ({ row }) => {
         const item = row.original;
         const hasChildren = item.children && item.children.length > 0;
-        const isExpanded = expanded[item.key] || false;
+        const isExpanded = (expanded as Record<string, boolean>)[item.key] || false;
 
         if (!hasChildren) {
           return <div className="w-6" />;
