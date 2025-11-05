@@ -12,9 +12,21 @@ export const getCleanJiraUrl = (): string => {
   return jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
 };
 
+// Debug: Log API_CONFIG initialization
+const initBaseUrl = '/api';
+const initVersion = process.env.NEXT_PUBLIC_API_VERSION || 'v1';
+
+console.log('[API_CONFIG] Initializing:', {
+  initBaseUrl,
+  initVersion,
+  'NEXT_PUBLIC_API_VERSION': process.env.NEXT_PUBLIC_API_VERSION,
+  'typeof window': typeof window,
+  timestamp: new Date().toISOString()
+});
+
 export const API_CONFIG = {
-  baseUrl: '/api', // Always use /api - Next.js rewrites handle backend routing
-  version: process.env.NEXT_PUBLIC_API_VERSION || 'v1',
+  baseUrl: initBaseUrl, // Always use /api - Next.js rewrites handle backend routing
+  version: initVersion,
   
   endpoints: {
     // Team endpoints
@@ -119,7 +131,45 @@ export const buildBackendUrl = (endpoint: string): string => {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
   // Build versioned path: /api/v1/teams/getNames
-  return `${baseUrl}/${version}${cleanEndpoint}`;
+  const fullUrl = `${baseUrl}/${version}${cleanEndpoint}`;
+  
+  // Debug logging for Railway issue - first report using wrong URL
+  const expectedPattern = /^\/api\/v1\//;
+  const isWrongUrl = !expectedPattern.test(fullUrl);
+  
+  console.log('[buildBackendUrl] Debug:', {
+    endpoint,
+    baseUrl,
+    version,
+    cleanEndpoint,
+    fullUrl,
+    'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
+    'API_CONFIG.version': API_CONFIG.version,
+    'NEXT_PUBLIC_API_VERSION': process.env.NEXT_PUBLIC_API_VERSION,
+    'typeof window': typeof window,
+    isWrongUrl,
+    expectedPattern: '/api/v1/...',
+    timestamp: new Date().toISOString()
+  });
+  
+  // Alert if URL is wrong (Railway issue)
+  if (isWrongUrl) {
+    console.error('[buildBackendUrl] ❌ WRONG URL DETECTED!', {
+      fullUrl,
+      expected: `/api/v1${cleanEndpoint}`,
+      actual: fullUrl,
+      baseUrl,
+      version,
+      endpoint,
+      'API_CONFIG': {
+        baseUrl: API_CONFIG.baseUrl,
+        version: API_CONFIG.version
+      },
+      stackTrace: new Error().stack
+    });
+  }
+  
+  return fullUrl;
 };
 
 // Type definitions for API responses

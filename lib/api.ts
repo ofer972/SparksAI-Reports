@@ -472,7 +472,24 @@ export class ApiService {
       params.append('team_name', teamName);
     }
 
-    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issueStatusDuration)}?${params}`;
+    const endpoint = API_CONFIG.endpoints.issues.issueStatusDuration;
+    const baseUrl = buildBackendUrl(endpoint);
+    const url = `${baseUrl}?${params}`;
+    
+    // Debug logging for Railway issue - first report using wrong URL
+    console.log('[ApiService.getIssueStatusDuration] Debug:', {
+      endpoint,
+      baseUrl,
+      fullUrl: url,
+      'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
+      'API_CONFIG.version': API_CONFIG.version,
+      'this.baseUrl': this.baseUrl,
+      issueType,
+      teamName,
+      params: params.toString(),
+      timestamp: new Date().toISOString()
+    });
+    
     const response = await fetch(url);
     
     if (!response.ok) {
