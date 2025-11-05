@@ -127,10 +127,12 @@ export const buildBackendUrl = (endpoint: string): string => {
   const baseUrl = API_CONFIG.baseUrl;
   const version = API_CONFIG.version;
   
-  // CRITICAL: Check if baseUrl is empty or wrong
-  if (!baseUrl || baseUrl === '') {
+  // CRITICAL: Check if baseUrl is empty or wrong (runtime check despite TypeScript types)
+  const baseUrlStr = String(baseUrl || '');
+  if (!baseUrlStr || baseUrlStr === '') {
     console.error('[buildBackendUrl] ❌❌❌ EMPTY BASEURL DETECTED!', {
       baseUrl,
+      baseUrlStr,
       'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
       'API_CONFIG': JSON.stringify(API_CONFIG),
       endpoint,
@@ -143,7 +145,8 @@ export const buildBackendUrl = (endpoint: string): string => {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
   // Build versioned path: /api/v1/teams/getNames
-  const fullUrl = `${baseUrl}/${version}${cleanEndpoint}`;
+  // Use baseUrlStr to ensure we have a string value
+  const fullUrl = `${baseUrlStr}/${version}${cleanEndpoint}`;
   
   // Debug logging for Railway issue - first report using wrong URL
   const expectedPattern = /^\/api\/v1\//;
@@ -154,6 +157,7 @@ export const buildBackendUrl = (endpoint: string): string => {
     console.log('[buildBackendUrl] Debug:', {
       endpoint,
       baseUrl,
+      baseUrlStr,
       version,
       cleanEndpoint,
       fullUrl,
@@ -164,8 +168,7 @@ export const buildBackendUrl = (endpoint: string): string => {
       isWrongUrl,
       expectedPattern: '/api/v1/...',
       'baseUrl type': typeof baseUrl,
-      'baseUrl length': baseUrl?.length,
-      'baseUrl === ""': baseUrl === '',
+      'baseUrlStr length': baseUrlStr?.length,
       timestamp: new Date().toISOString()
     });
   } catch (e) {
@@ -179,14 +182,15 @@ export const buildBackendUrl = (endpoint: string): string => {
       expected: `/api/v1${cleanEndpoint}`,
       actual: fullUrl,
       baseUrl,
+      baseUrlStr,
       version,
       endpoint,
       'API_CONFIG': {
         baseUrl: API_CONFIG.baseUrl,
         version: API_CONFIG.version
       },
-      'baseUrl is empty?': !baseUrl || baseUrl === '',
-      'baseUrl value': JSON.stringify(baseUrl),
+      'baseUrlStr is empty?': !baseUrlStr || baseUrlStr === '',
+      'baseUrlStr value': JSON.stringify(baseUrlStr),
       stackTrace: new Error().stack
     });
   }
