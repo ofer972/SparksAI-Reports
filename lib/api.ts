@@ -476,7 +476,7 @@ export class ApiService {
     }
     
     if (period) {
-      params.append('period', period.toString());
+      params.append('months', period.toString());
     }
 
     const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issueStatusDuration)}?${params}`;
@@ -514,7 +514,7 @@ export class ApiService {
     }
     
     if (period) {
-      params.append('period', period.toString());
+      params.append('months', period.toString());
     }
 
     const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issueStatusDurationWithKeys)}?${params}`;

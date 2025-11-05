@@ -113,19 +113,6 @@ export default function SprintPredictabilityPage() {
       },
     },
     {
-      accessorKey: 'issues_not_completed',
-      header: 'ISSUES NOT COMPLETED',
-      size: 100,
-      cell: ({ getValue }) => {
-        const value = getValue() as number;
-        return (
-          <div className="text-sm text-gray-900 text-center">
-            {value !== undefined && value !== null ? value : '-'}
-          </div>
-        );
-      },
-    },
-    {
       id: 'jira_link',
       header: 'NOT COMPLETED ISSUES',
       size: 140,
