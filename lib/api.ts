@@ -472,7 +472,17 @@ export class ApiService {
       params.append('team_name', teamName);
     }
 
-    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issueStatusDuration)}?${params}`;
+    // Railway fix: Explicitly ensure URL is relative to current origin
+    const endpoint = API_CONFIG.endpoints.issues.issueStatusDuration;
+    const baseUrl = buildBackendUrl(endpoint);
+    
+    // Construct URL explicitly relative to frontend origin (prevents Railway transformation)
+    // This ensures the URL resolves against the frontend domain, not the backend
+    const urlWithParams = `${baseUrl}?${params}`;
+    const url = typeof window !== 'undefined'
+      ? new URL(urlWithParams, window.location.origin).pathname + new URL(urlWithParams, window.location.origin).search
+      : urlWithParams;
+    
     const response = await fetch(url);
     
     if (!response.ok) {
