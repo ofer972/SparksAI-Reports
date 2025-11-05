@@ -23,8 +23,8 @@ export default function Home() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const navigationItems = [
-    { id: 'report-one', label: 'Flow Status Duration', icon: '📈' },
-    { id: 'report-two', label: 'Epic/Story Hierarchy', icon: '📊' },
+    { id: 'report-one', label: 'Epic/Story Hierarchy', icon: '📊' },
+    { id: 'report-two', label: 'Flow Status Duration', icon: '📈' },
     { id: 'report-three', label: 'Sprint Predictability', icon: '📉' },
     { id: 'report-four', label: 'Release Predictability and Status', icon: '🚀' },
     { id: 'report-five', label: 'Open Bugs by Priority', icon: '🐛' },
@@ -33,9 +33,9 @@ export default function Home() {
   const renderMainContent = () => {
     switch (activeNavItem) {
       case 'report-one':
-        return <FlowStatusDurationPage />;
-      case 'report-two':
         return <EpicsHierarchyPage />;
+      case 'report-two':
+        return <FlowStatusDurationPage />;
       case 'report-three':
         return <SprintPredictabilityPage />;
       case 'report-four':
