@@ -22,6 +22,8 @@ import {
   IssueStatusDurationResponse,
   IssueStatusDurationWithKeysResponse,
   IssueStatusDurationIssue,
+  IssueStatusDurationPerMonthResponse,
+  MonthlyStatusDurationDataset,
   SprintPredictabilityItem,
   SprintPredictabilityResponse,
   ReleasePredictabilityItem,
@@ -531,6 +533,45 @@ export class ApiService {
     }
     
     return [];
+  }
+
+  // Issue Status Duration Per Month API
+  async getIssueStatusDurationPerMonth(
+    issueType?: string,
+    teamName?: string,
+    period?: number
+  ): Promise<{ labels: string[]; datasets: MonthlyStatusDurationDataset[] }> {
+    const params = new URLSearchParams();
+    
+    if (issueType) {
+      params.append('issue_type', issueType);
+    }
+    
+    if (teamName) {
+      params.append('team_name', teamName);
+    }
+    
+    if (period) {
+      params.append('months', period.toString());
+    }
+
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issueStatusDurationPerMonth)}?${params}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch issue status duration per month: ${response.statusText}`);
+    }
+
+    const result: IssueStatusDurationPerMonthResponse = await response.json();
+    
+    if (result.success && result.data) {
+      return {
+        labels: result.data.labels,
+        datasets: result.data.datasets,
+      };
+    }
+    
+    return { labels: [], datasets: [] };
   }
 
   // Sprint Predictability API

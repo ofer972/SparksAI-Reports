@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ApiService } from '@/lib/api';
-import { StatusDuration, IssueStatusDurationIssue, getCleanJiraUrl } from '@/lib/config';
+import { StatusDuration, IssueStatusDurationIssue, MonthlyStatusDurationDataset, getCleanJiraUrl } from '@/lib/config';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,8 +26,15 @@ ChartJS.register(
   ChartDataLabels
 );
 
+type ViewMode = 'total' | 'monthly';
+
 export default function FlowStatusDurationPage() {
+  // View mode toggle
+  const [viewMode, setViewMode] = useState<ViewMode>('total');
+  
+  // Data states
   const [data, setData] = useState<StatusDuration[]>([]);
+  const [monthlyData, setMonthlyData] = useState<{ labels: string[]; datasets: MonthlyStatusDurationDataset[] }>({ labels: [], datasets: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -46,44 +53,111 @@ export default function FlowStatusDurationPage() {
   const apiService = new ApiService();
 
   // Fetch data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     
     try {
-      const result = await apiService.getIssueStatusDuration(
-        issueType || undefined,
-        teamName || undefined,
-        period
-      );
-      setData(result);
+      if (viewMode === 'total') {
+        const result = await apiService.getIssueStatusDuration(
+          issueType || undefined,
+          teamName || undefined,
+          period
+        );
+        setData(result);
+      } else {
+        const result = await apiService.getIssueStatusDurationPerMonth(
+          issueType || undefined,
+          teamName || undefined,
+          period
+        );
+        setMonthlyData(result);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch status duration data';
       setError(`${errorMessage}. Check browser console for details.`);
-      setData([]);
+      if (viewMode === 'total') {
+        setData([]);
+      } else {
+        setMonthlyData({ labels: [], datasets: [] });
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [viewMode, issueType, teamName, period]);
 
-  // Auto-fetch on mount and when period changes
+  // Auto-fetch on mount and when period or viewMode changes
   useEffect(() => {
     fetchData();
-  }, [period]);
+  }, [fetchData]);
 
-  // Prepare chart data
-  const chartData = {
-    labels: data.map(item => item.status_name),
-    datasets: [
-      {
-        label: 'Average Days',
-        data: data.map(item => item.avg_duration_days),
-        backgroundColor: 'rgba(59, 130, 246, 0.8)',
-        borderColor: 'rgba(59, 130, 246, 1)',
+  // Color palette for monthly view (one color per month)
+  // Ordered: Black, Blue, Purple, Green, Yellow
+  const monthlyColors = [
+    'rgba(17, 24, 39, 0.8)',      // Black (gray-900)
+    'rgba(59, 130, 246, 0.8)',    // Blue
+    'rgba(168, 85, 247, 0.8)',    // Purple
+    'rgba(34, 197, 94, 0.8)',     // Green
+    'rgba(234, 179, 8, 0.8)',     // Yellow
+    'rgba(245, 158, 11, 0.8)',    // Amber (fallback)
+  ];
+
+  const monthlyBorderColors = [
+    'rgba(17, 24, 39, 1)',         // Black (gray-900)
+    'rgba(59, 130, 246, 1)',      // Blue
+    'rgba(168, 85, 247, 1)',      // Purple
+    'rgba(34, 197, 94, 1)',       // Green
+    'rgba(234, 179, 8, 1)',       // Yellow
+    'rgba(245, 158, 11, 1)',      // Amber (fallback)
+  ];
+
+  // Prepare chart data conditionally
+  const chartData = useMemo(() => {
+    if (viewMode === 'total') {
+      // Filter out statuses with zero values
+      const filteredData = data.filter(item => item.avg_duration_days > 0);
+      
+      return {
+        labels: filteredData.map(item => item.status_name),
+        datasets: [
+          {
+            label: 'Average Days',
+            data: filteredData.map(item => item.avg_duration_days),
+            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+            borderColor: 'rgba(59, 130, 246, 1)',
+            borderWidth: 1,
+          },
+        ],
+      };
+    } else {
+      // Monthly view - transform datasets to have months as datasets and statuses as labels
+      // The API returns: labels = months, datasets = statuses with data per month
+      // For grouped bar chart, we need: labels = statuses, datasets = months with data per status
+      
+      // Filter out statuses where all values are zero
+      const filteredStatusDatasets = monthlyData.datasets.filter(statusDataset => {
+        // Check if status has at least one non-zero value across all months
+        return statusDataset.data.some(value => value > 0);
+      });
+      
+      // Extract unique status names from filtered datasets
+      const statusLabels = filteredStatusDatasets.map(d => d.label);
+      
+      // Transform: create one dataset per month, only for statuses with values
+      const monthDatasets = monthlyData.labels.map((monthLabel, monthIndex) => ({
+        label: monthLabel,
+        data: filteredStatusDatasets.map(statusDataset => statusDataset.data[monthIndex] || 0),
+        backgroundColor: monthlyColors[monthIndex % monthlyColors.length],
+        borderColor: monthlyBorderColors[monthIndex % monthlyBorderColors.length],
         borderWidth: 1,
-      },
-    ],
-  };
+      }));
+
+      return {
+        labels: statusLabels,
+        datasets: monthDatasets,
+      };
+    }
+  }, [viewMode, data, monthlyData]);
 
   // Handle bar click
   const handleBarClick = async (statusName: string) => {
@@ -107,7 +181,7 @@ export default function FlowStatusDurationPage() {
       setModalLoading(false);
     }
   };
-
+  
   // Open Jira issue
   const openJiraIssue = (issueKey: string) => {
     const cleanJiraUrl = getCleanJiraUrl();
@@ -115,14 +189,16 @@ export default function FlowStatusDurationPage() {
     window.open(jiraLink, '_blank');
   };
 
-  const chartOptions = {
+  const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     onClick: (event: any, elements: any[]) => {
       if (elements.length > 0) {
         const element = elements[0];
-        const index = element.index;
-        const statusName = data[index]?.status_name;
+        // For grouped bars, element.index gives the status, element.datasetIndex gives the month
+        const statusIndex = element.index;
+        // Get status name from chartData labels (filtered data)
+        const statusName = chartData.labels[statusIndex];
         if (statusName) {
           handleBarClick(statusName);
         }
@@ -137,11 +213,14 @@ export default function FlowStatusDurationPage() {
     },
     plugins: {
       legend: {
-        display: false,
+        display: viewMode === 'monthly',
+        position: 'top' as const,
       },
       title: {
         display: true,
-        text: 'Average Days in Transition Status (In Progress Category) - Click a bar to view issues',
+        text: viewMode === 'total' 
+          ? 'Average Days in Transition Status (In Progress Category) - Click a bar to view issues'
+          : 'Flow Status Distribution - Average Days per Month - Click a bar to view issues',
         font: {
           size: 14,
           weight: 'bold' as const,
@@ -150,7 +229,8 @@ export default function FlowStatusDurationPage() {
       tooltip: {
         callbacks: {
           label: (context: any) => {
-            return `${context.parsed.y.toFixed(1)} days (Click to view issues)`;
+            const monthLabel = viewMode === 'monthly' ? `${context.dataset.label}: ` : '';
+            return `${monthLabel}${context.parsed.y.toFixed(1)} days (Click to view issues)`;
           },
         },
       },
@@ -158,6 +238,10 @@ export default function FlowStatusDurationPage() {
         anchor: 'end' as const,
         align: 'top' as const,
         formatter: (value: number) => {
+          // Don't show labels for zero values
+          if (value === 0 || value === null || value === undefined) {
+            return '';
+          }
           return value.toFixed(1);
         },
         font: {
@@ -175,7 +259,7 @@ export default function FlowStatusDurationPage() {
         beginAtZero: true,
         title: {
           display: true,
-          text: 'Average Days',
+          text: '# of Days',
           font: {
             size: 12,
           },
@@ -185,6 +269,23 @@ export default function FlowStatusDurationPage() {
             return value.toFixed(0);
           },
         },
+        // Add padding at the top - calculate max value and add 10% extra space
+        suggestedMax: (() => {
+          // Find the maximum value across all datasets
+          let maxValue = 0;
+          chartData.datasets.forEach(dataset => {
+            const datasetMax = Math.max(...dataset.data);
+            if (datasetMax > maxValue) {
+              maxValue = datasetMax;
+            }
+          });
+          // Add 10% padding at the top, rounded up to next 5
+          if (maxValue > 0) {
+            const paddedMax = maxValue * 1.1;
+            return Math.ceil(paddedMax / 5) * 5;
+          }
+          return undefined;
+        })(),
       },
       x: {
         title: {
@@ -204,7 +305,7 @@ export default function FlowStatusDurationPage() {
         },
       },
     },
-  };
+  }), [viewMode, data, monthlyData, chartData]);
 
   return (
     <div className="space-y-4">
@@ -296,8 +397,44 @@ export default function FlowStatusDurationPage() {
       {/* Chart */}
       {!loading && !error && (
         <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+          {/* Chart Header with Toggle */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Flow Status Distribution
+            </h2>
+            
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">View:</span>
+              <div className="inline-flex rounded-md shadow-sm" role="group">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('total')}
+                  className={`px-4 py-2 text-sm font-medium rounded-l-lg border ${
+                    viewMode === 'total'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Total Average
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('monthly')}
+                  className={`px-4 py-2 text-sm font-medium rounded-r-lg border-t border-r border-b ${
+                    viewMode === 'monthly'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Monthly Average
+                </button>
+              </div>
+            </div>
+          </div>
+          
           <div className="h-96 w-[60%]">
-            {data.length > 0 ? (
+            {(viewMode === 'total' ? data.length > 0 : monthlyData.datasets.length > 0) ? (
               <Bar data={chartData} options={chartOptions} />
             ) : (
               <div className="h-full flex items-center justify-center text-gray-500">

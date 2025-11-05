@@ -3,10 +3,7 @@ RAILWAY ENVIRONMENT VARIABLES
 Copy and paste these into Railway Variables
 ===========================================
 
-INTERNAL_BACKEND_URL=https://sparksai-backend-production.up.railway.app
-NEXT_PUBLIC_API_VERSION=v1
-NEXT_PUBLIC_JIRA_URL=https://argus-sec.atlassian.net/
-
+image.png
 # Optional: For localhost development, set this to your backend URL
 # If not set, defaults to http://localhost:8000
 # NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
