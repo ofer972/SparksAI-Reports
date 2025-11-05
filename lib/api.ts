@@ -31,7 +31,10 @@ import {
   IssueByPriority,
   IssuesByPriorityResponse,
   IssuesByTeam,
-  IssuesByTeamResponse
+  IssuesByTeamResponse,
+  PIStatusForTodayResponse,
+  PIStatusForTodayItem,
+  PIWIPResponse
 } from './config';
 // No auth imports needed - simplified
 
@@ -116,6 +119,58 @@ export class ApiService {
 
     const result: ApiResponse<PIsResponse> = await response.json();
     return result.data;
+  }
+
+  // PI Status For Today API
+  async getPIStatusForToday(targetPiName: string): Promise<PIStatusForTodayResponse> {
+    const params = new URLSearchParams({
+      pi: targetPiName,
+    });
+
+    const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.pis.getPIStatusForToday)}?${params}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch PI status for today: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<PIStatusForTodayItem[]> = await response.json();
+    console.log('Raw API response:', result);
+    
+    if (result.success && result.data) {
+      // result.data is an array of PIStatusForTodayItem
+      // Wrap it in PIStatusForTodayResponse structure
+      const responseData: PIStatusForTodayResponse = {
+        data: result.data,
+        count: result.data.length,
+        message: result.message || '',
+      };
+      console.log('Parsed response data:', responseData);
+      return responseData;
+    }
+    
+    console.log('No success or no data in response');
+    return { data: [], count: 0, message: '' };
+  }
+
+  // PI WIP (Work In Progress) API
+  async getPIWIP(piName: string): Promise<PIWIPResponse> {
+    const params = new URLSearchParams({
+      pi: piName,
+    });
+
+    const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.pis.getWIP)}?${params}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch PI WIP: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<PIWIPResponse> = await response.json();
+    
+    if (result.success && result.data) {
+      return result.data;
+    }
+    
+    throw new Error('Failed to fetch PI WIP: Invalid response format');
   }
 
   // Burndown API

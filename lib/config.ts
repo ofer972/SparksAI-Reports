@@ -28,6 +28,8 @@ export const API_CONFIG = {
       getPredictability: '/pis/predictability',
       getBurndown: '/pis/burndown',
       getScopeChanges: '/pis/scope-changes',
+      getPIStatusForToday: '/pis/get-pi-status-for-today',
+      getWIP: '/pis/WIP',
     },
     
     // Burndown endpoints
@@ -204,6 +206,39 @@ export interface RecommendationsResponse {
   count: number;
   team_name: string;
   limit: number;
+}
+
+export interface PIStatusForTodayItem {
+  pi_name?: string;
+  pi_start_date?: string;
+  pi_end_date?: string;
+  latest_snapshot_date?: string;
+  planned_epics?: number;
+  added_epics?: number;
+  removed_epics?: number;
+  closed_epics?: number;
+  remaining_epics?: number;
+  ideal_remaining?: number;
+  total_issues?: number;
+  progress_delta_pct: number;
+  progress_delta_pct_status: 'red' | 'yellow' | 'green';
+  [key: string]: any; // Allow other fields in response
+}
+
+export interface PIStatusForTodayResponse {
+  data: PIStatusForTodayItem[];
+  count: number;
+  message: string;
+}
+
+export interface PIWIPResponse {
+  count_in_progress: number;
+  count_in_progress_status: 'red' | 'yellow' | 'green';
+  total_epics: number;
+  in_progress_percentage: number;
+  pi: string;
+  team: string;
+  project: string | null;
 }
 
 export interface SprintMetrics {
