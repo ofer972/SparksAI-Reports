@@ -34,7 +34,8 @@ import {
   IssuesByTeamResponse,
   PIStatusForTodayResponse,
   PIStatusForTodayItem,
-  PIWIPResponse
+  PIWIPResponse,
+  EpicDependencyItem
 } from './config';
 // No auth imports needed - simplified
 
@@ -721,6 +722,52 @@ export class ApiService {
     }
     
     return [];
+  }
+
+  // Epic Outbound Dependency Load by Quarter API
+  async getEpicOutboundDependencyLoadByQuarter(pi?: string): Promise<EpicDependencyItem[]> {
+    const params = new URLSearchParams();
+    if (pi) {
+      params.append('pi', pi);
+    }
+    
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.epicOutboundDependencyLoadByQuarter)}${params.toString() ? `?${params}` : ''}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch epic outbound dependency load: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<EpicDependencyItem[]> = await response.json();
+    
+    if (result.success && result.data) {
+      return result.data;
+    }
+    
+    throw new Error(result.message || 'Failed to fetch epic outbound dependency load');
+  }
+
+  // Epic Inbound Dependency Load by Quarter API
+  async getEpicInboundDependencyLoadByQuarter(pi?: string): Promise<EpicDependencyItem[]> {
+    const params = new URLSearchParams();
+    if (pi) {
+      params.append('pi', pi);
+    }
+    
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.epicInboundDependencyLoadByQuarter)}${params.toString() ? `?${params}` : ''}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch epic inbound dependency load: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<EpicDependencyItem[]> = await response.json();
+    
+    if (result.success && result.data) {
+      return result.data;
+    }
+    
+    throw new Error(result.message || 'Failed to fetch epic inbound dependency load');
   }
 }
 

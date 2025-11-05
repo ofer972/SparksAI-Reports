@@ -93,6 +93,8 @@ export const API_CONFIG = {
       releasePredictability: '/issues/release-predictability',
       issuesGroupedByPriority: '/issues/issues-grouped-by-priority',
       issuesGroupedByTeam: '/issues/issues-grouped-by-team',
+      epicOutboundDependencyLoadByQuarter: '/issues/epic-outbound-dependency-metrics-by-quarter',
+      epicInboundDependencyLoadByQuarter: '/issues/epic-inbound-dependency-load-by-quarter',
     },
     
     // Sprints endpoints
@@ -239,6 +241,12 @@ export interface PIWIPResponse {
   pi: string;
   team: string;
   project: string | null;
+}
+
+export interface EpicDependencyItem {
+  pi?: string;
+  team_name_of_epic?: string;
+  [key: string]: any; // Allow other fields from endpoint
 }
 
 export interface SprintMetrics {

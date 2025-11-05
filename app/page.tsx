@@ -9,6 +9,7 @@ import SprintPredictabilityPage from '@/components/sprint-predictability/SprintP
 import ReleasePredictabilityPage from '@/components/release-predictability/ReleasePredictabilityPage';
 import BugsByPriorityPage from '@/components/bugs-by-priority/BugsByPriorityPage';
 import PIMetricsPage from '@/components/pi-metrics/PIMetricsPage';
+import EpicDependenciesPage from '@/components/epic-dependencies/EpicDependenciesPage';
 
 export default function Home() {
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function Home() {
     { id: 'report-four', label: 'Release Predictability and Status', icon: '🚀' },
     { id: 'report-five', label: 'Open Bugs by Priority', icon: '🐛' },
     { id: 'report-six', label: 'PI Metrics', icon: '📋' },
+    { id: 'report-seven', label: 'Epic Dependencies', icon: '🔗' },
   ];
 
   const renderMainContent = () => {
@@ -46,6 +48,8 @@ export default function Home() {
         return <BugsByPriorityPage />;
       case 'report-six':
         return <PIMetricsPage />;
+      case 'report-seven':
+        return <EpicDependenciesPage />;
       default:
         return (
           <div className="bg-white rounded-lg shadow-sm p-6 text-center">
