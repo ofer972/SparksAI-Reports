@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ApiService } from '@/lib/api';
-import { StatusDuration, API_CONFIG } from '@/lib/config';
+import { StatusDuration } from '@/lib/config';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -42,17 +42,6 @@ export default function FlowStatusDurationPage() {
     setLoading(true);
     setError(null);
     
-    // Debug logging for Railway issue - first report using wrong URL
-    console.log('[FlowStatusDurationPage] Starting fetchData:', {
-      issueType,
-      teamName,
-      'API_CONFIG (from import)': typeof API_CONFIG !== 'undefined' ? {
-        baseUrl: (API_CONFIG as any).baseUrl,
-        version: (API_CONFIG as any).version
-      } : 'API_CONFIG not available',
-      timestamp: new Date().toISOString()
-    });
-    
     try {
       const result = await apiService.getIssueStatusDuration(
         issueType || undefined,
@@ -63,17 +52,6 @@ export default function FlowStatusDurationPage() {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch status duration data';
       setError(`${errorMessage}. Check browser console for details.`);
       setData([]);
-      
-      // Enhanced logging for debugging (including production)
-      console.error('[FlowStatusDurationPage] Status Duration API Error:', {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : String(err),
-        issueType,
-        teamName,
-        endpoint: '/api/v1/issues/issue-status-duration',
-        expectedUrl: '/api/v1/issues/issue-status-duration',
-        timestamp: new Date().toISOString()
-      });
     } finally {
       setLoading(false);
     }
@@ -81,16 +59,6 @@ export default function FlowStatusDurationPage() {
 
   // Auto-fetch on mount
   useEffect(() => {
-    // Debug logging for Railway issue - component mount
-    console.log('[FlowStatusDurationPage] Component mounted:', {
-      'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
-      'API_CONFIG.version': API_CONFIG.version,
-      'NEXT_PUBLIC_API_VERSION': process.env.NEXT_PUBLIC_API_VERSION,
-      'typeof window': typeof window,
-      'window.location': typeof window !== 'undefined' ? window.location.href : 'N/A',
-      timestamp: new Date().toISOString()
-    });
-    
     fetchData();
   }, []);
 

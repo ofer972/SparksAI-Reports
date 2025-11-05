@@ -12,21 +12,9 @@ export const getCleanJiraUrl = (): string => {
   return jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
 };
 
-// Debug: Log API_CONFIG initialization
-const initBaseUrl = '/api';
-const initVersion = process.env.NEXT_PUBLIC_API_VERSION || 'v1';
-
-console.log('[API_CONFIG] Initializing:', {
-  initBaseUrl,
-  initVersion,
-  'NEXT_PUBLIC_API_VERSION': process.env.NEXT_PUBLIC_API_VERSION,
-  'typeof window': typeof window,
-  timestamp: new Date().toISOString()
-});
-
 export const API_CONFIG = {
-  baseUrl: initBaseUrl, // Always use /api - Next.js rewrites handle backend routing
-  version: initVersion,
+  baseUrl: '/api', // Always use /api - Next.js rewrites handle backend routing
+  version: process.env.NEXT_PUBLIC_API_VERSION || 'v1',
   
   endpoints: {
     // Team endpoints
@@ -127,75 +115,11 @@ export const buildBackendUrl = (endpoint: string): string => {
   const baseUrl = API_CONFIG.baseUrl;
   const version = API_CONFIG.version;
   
-  // CRITICAL: Check if baseUrl is empty or wrong (runtime check despite TypeScript types)
-  const baseUrlStr = String(baseUrl || '');
-  if (!baseUrlStr || baseUrlStr === '') {
-    console.error('[buildBackendUrl] ❌❌❌ EMPTY BASEURL DETECTED!', {
-      baseUrl,
-      baseUrlStr,
-      'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
-      'API_CONFIG': JSON.stringify(API_CONFIG),
-      endpoint,
-      version,
-      stackTrace: new Error().stack
-    });
-  }
-  
   // Ensure endpoint starts with /
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
   // Build versioned path: /api/v1/teams/getNames
-  // Use baseUrlStr to ensure we have a string value
-  const fullUrl = `${baseUrlStr}/${version}${cleanEndpoint}`;
-  
-  // Debug logging for Railway issue - first report using wrong URL
-  const expectedPattern = /^\/api\/v1\//;
-  const isWrongUrl = !expectedPattern.test(fullUrl);
-  
-  // Force console.log to ensure it appears (even if code-split)
-  try {
-    console.log('[buildBackendUrl] Debug:', {
-      endpoint,
-      baseUrl,
-      baseUrlStr,
-      version,
-      cleanEndpoint,
-      fullUrl,
-      'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
-      'API_CONFIG.version': API_CONFIG.version,
-      'NEXT_PUBLIC_API_VERSION': process.env.NEXT_PUBLIC_API_VERSION,
-      'typeof window': typeof window,
-      isWrongUrl,
-      expectedPattern: '/api/v1/...',
-      'baseUrl type': typeof baseUrl,
-      'baseUrlStr length': baseUrlStr?.length,
-      timestamp: new Date().toISOString()
-    });
-  } catch (e) {
-    console.error('[buildBackendUrl] Logging error:', e);
-  }
-  
-  // Alert if URL is wrong (Railway issue)
-  if (isWrongUrl) {
-    console.error('[buildBackendUrl] ❌ WRONG URL DETECTED!', {
-      fullUrl,
-      expected: `/api/v1${cleanEndpoint}`,
-      actual: fullUrl,
-      baseUrl,
-      baseUrlStr,
-      version,
-      endpoint,
-      'API_CONFIG': {
-        baseUrl: API_CONFIG.baseUrl,
-        version: API_CONFIG.version
-      },
-      'baseUrlStr is empty?': !baseUrlStr || baseUrlStr === '',
-      'baseUrlStr value': JSON.stringify(baseUrlStr),
-      stackTrace: new Error().stack
-    });
-  }
-  
-  return fullUrl;
+  return `${baseUrl}/${version}${cleanEndpoint}`;
 };
 
 // Type definitions for API responses
