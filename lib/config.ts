@@ -86,6 +86,7 @@ export const API_CONFIG = {
     issues: {
       epicsHierarchy: '/issues/epics-hierarchy',
       issueStatusDuration: '/issues/issue-status-duration',
+      issueStatusDurationWithKeys: '/issues/issue-status-duration-with-issue-keys',
       releasePredictability: '/issues/release-predictability',
       issuesGroupedByPriority: '/issues/issues-grouped-by-priority',
       issuesGroupedByTeam: '/issues/issues-grouped-by-team',
@@ -318,6 +319,23 @@ export interface IssueStatusDurationResponse {
   data: {
     status_durations: StatusDuration[];
     count: number;
+    months: number;
+  };
+  message: string;
+}
+
+export interface IssueStatusDurationIssue {
+  issue_key: string;
+  issue_summary: string;
+  duration_days: number;
+}
+
+export interface IssueStatusDurationWithKeysResponse {
+  success: boolean;
+  data: {
+    issues: IssueStatusDurationIssue[];
+    count: number;
+    status_name: string;
     months: number;
   };
   message: string;

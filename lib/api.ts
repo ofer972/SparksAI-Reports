@@ -20,6 +20,8 @@ import {
   EpicsHierarchyResponse,
   StatusDuration,
   IssueStatusDurationResponse,
+  IssueStatusDurationWithKeysResponse,
+  IssueStatusDurationIssue,
   SprintPredictabilityItem,
   SprintPredictabilityResponse,
   ReleasePredictabilityItem,
@@ -460,7 +462,8 @@ export class ApiService {
   // Issue Status Duration API
   async getIssueStatusDuration(
     issueType?: string,
-    teamName?: string
+    teamName?: string,
+    period?: number
   ): Promise<StatusDuration[]> {
     const params = new URLSearchParams();
     
@@ -470,6 +473,10 @@ export class ApiService {
     
     if (teamName) {
       params.append('team_name', teamName);
+    }
+    
+    if (period) {
+      params.append('period', period.toString());
     }
 
     // Railway fix: Explicitly ensure URL is relative to current origin
@@ -493,6 +500,52 @@ export class ApiService {
     
     if (result.success && result.data && result.data.status_durations) {
       return result.data.status_durations;
+    }
+    
+    return [];
+  }
+
+  // Issue Status Duration with Issue Keys API
+  async getIssueStatusDurationWithKeys(
+    statusName: string,
+    issueType?: string,
+    teamName?: string,
+    period?: number
+  ): Promise<IssueStatusDurationIssue[]> {
+    const params = new URLSearchParams();
+    params.append('status_name', statusName);
+    
+    if (issueType) {
+      params.append('issue_type', issueType);
+    }
+    
+    if (teamName) {
+      params.append('team_name', teamName);
+    }
+    
+    if (period) {
+      params.append('period', period.toString());
+    }
+
+    const endpoint = API_CONFIG.endpoints.issues.issueStatusDurationWithKeys;
+    const baseUrl = buildBackendUrl(endpoint);
+    
+    // Railway fix: Explicitly ensure URL is relative to current origin
+    const urlWithParams = `${baseUrl}?${params}`;
+    const url = typeof window !== 'undefined'
+      ? new URL(urlWithParams, window.location.origin).pathname + new URL(urlWithParams, window.location.origin).search
+      : urlWithParams;
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch issue status duration with keys: ${response.statusText}`);
+    }
+
+    const result: IssueStatusDurationWithKeysResponse = await response.json();
+    
+    if (result.success && result.data && result.data.issues) {
+      return result.data.issues;
     }
     
     return [];
