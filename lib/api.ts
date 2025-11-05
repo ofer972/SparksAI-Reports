@@ -474,7 +474,26 @@ export class ApiService {
 
     const endpoint = API_CONFIG.endpoints.issues.issueStatusDuration;
     const baseUrl = buildBackendUrl(endpoint);
-    const url = `${baseUrl}?${params}`;
+    let url = `${baseUrl}?${params}`;
+    
+    // CRITICAL FIX: Ensure URL is relative and starts with /api/
+    // If baseUrl is somehow empty or wrong, fix it
+    if (!url.startsWith('/api/')) {
+      console.error('[ApiService.getIssueStatusDuration] ❌❌❌ FIXING WRONG URL!', {
+        originalUrl: url,
+        baseUrl,
+        endpoint,
+        'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
+        'Expected pattern': '/api/v1/...',
+        stackTrace: new Error().stack
+      });
+      
+      // Force correct URL
+      const correctBaseUrl = '/api/v1';
+      url = `${correctBaseUrl}${endpoint}?${params}`;
+      
+      console.log('[ApiService.getIssueStatusDuration] Fixed URL:', url);
+    }
     
     // Debug logging for Railway issue - first report using wrong URL
     console.log('[ApiService.getIssueStatusDuration] Debug:', {
@@ -487,10 +506,17 @@ export class ApiService {
       issueType,
       teamName,
       params: params.toString(),
+      'NEXT_PUBLIC_BACKEND_URL': process.env.NEXT_PUBLIC_BACKEND_URL,
+      'INTERNAL_BACKEND_URL': typeof process !== 'undefined' && process.env ? process.env.INTERNAL_BACKEND_URL : 'N/A',
+      'url.startsWith(/)': url.startsWith('/'),
+      'url.startsWith(http)': url.startsWith('http'),
+      'url.startsWith(/api/)': url.startsWith('/api/'),
       timestamp: new Date().toISOString()
     });
     
+    console.log('[ApiService.getIssueStatusDuration] About to fetch:', url);
     const response = await fetch(url);
+    console.log('[ApiService.getIssueStatusDuration] Fetch completed, status:', response.status, response.statusText);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch issue status duration: ${response.statusText}`);

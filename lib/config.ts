@@ -127,6 +127,18 @@ export const buildBackendUrl = (endpoint: string): string => {
   const baseUrl = API_CONFIG.baseUrl;
   const version = API_CONFIG.version;
   
+  // CRITICAL: Check if baseUrl is empty or wrong
+  if (!baseUrl || baseUrl === '') {
+    console.error('[buildBackendUrl] ❌❌❌ EMPTY BASEURL DETECTED!', {
+      baseUrl,
+      'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
+      'API_CONFIG': JSON.stringify(API_CONFIG),
+      endpoint,
+      version,
+      stackTrace: new Error().stack
+    });
+  }
+  
   // Ensure endpoint starts with /
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
@@ -137,20 +149,28 @@ export const buildBackendUrl = (endpoint: string): string => {
   const expectedPattern = /^\/api\/v1\//;
   const isWrongUrl = !expectedPattern.test(fullUrl);
   
-  console.log('[buildBackendUrl] Debug:', {
-    endpoint,
-    baseUrl,
-    version,
-    cleanEndpoint,
-    fullUrl,
-    'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
-    'API_CONFIG.version': API_CONFIG.version,
-    'NEXT_PUBLIC_API_VERSION': process.env.NEXT_PUBLIC_API_VERSION,
-    'typeof window': typeof window,
-    isWrongUrl,
-    expectedPattern: '/api/v1/...',
-    timestamp: new Date().toISOString()
-  });
+  // Force console.log to ensure it appears (even if code-split)
+  try {
+    console.log('[buildBackendUrl] Debug:', {
+      endpoint,
+      baseUrl,
+      version,
+      cleanEndpoint,
+      fullUrl,
+      'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
+      'API_CONFIG.version': API_CONFIG.version,
+      'NEXT_PUBLIC_API_VERSION': process.env.NEXT_PUBLIC_API_VERSION,
+      'typeof window': typeof window,
+      isWrongUrl,
+      expectedPattern: '/api/v1/...',
+      'baseUrl type': typeof baseUrl,
+      'baseUrl length': baseUrl?.length,
+      'baseUrl === ""': baseUrl === '',
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('[buildBackendUrl] Logging error:', e);
+  }
   
   // Alert if URL is wrong (Railway issue)
   if (isWrongUrl) {
@@ -165,6 +185,8 @@ export const buildBackendUrl = (endpoint: string): string => {
         baseUrl: API_CONFIG.baseUrl,
         version: API_CONFIG.version
       },
+      'baseUrl is empty?': !baseUrl || baseUrl === '',
+      'baseUrl value': JSON.stringify(baseUrl),
       stackTrace: new Error().stack
     });
   }
