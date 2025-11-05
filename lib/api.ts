@@ -473,7 +473,27 @@ export class ApiService {
     }
 
     const endpoint = API_CONFIG.endpoints.issues.issueStatusDuration;
+    
+    // CRITICAL: Log before calling buildBackendUrl
+    console.log('[ApiService.getIssueStatusDuration] BEFORE buildBackendUrl:', {
+      endpoint,
+      'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
+      'API_CONFIG.version': API_CONFIG.version,
+      'API_CONFIG': JSON.stringify(API_CONFIG)
+    });
+    
     const baseUrl = buildBackendUrl(endpoint);
+    
+    // CRITICAL: Log after buildBackendUrl
+    console.log('[ApiService.getIssueStatusDuration] AFTER buildBackendUrl:', {
+      baseUrl,
+      endpoint,
+      'baseUrl type': typeof baseUrl,
+      'baseUrl starts with /api': baseUrl?.startsWith('/api'),
+      'baseUrl starts with /v1': baseUrl?.startsWith('/v1'),
+      'baseUrl starts with http': baseUrl?.startsWith('http'),
+    });
+    
     let url = `${baseUrl}?${params}`;
     
     // CRITICAL FIX: Ensure URL is relative and starts with /api/
@@ -485,14 +505,21 @@ export class ApiService {
         endpoint,
         'API_CONFIG.baseUrl': API_CONFIG.baseUrl,
         'Expected pattern': '/api/v1/...',
+        'url.startsWith(/api/)': url.startsWith('/api/'),
+        'url.startsWith(/v1/)': url.startsWith('/v1/'),
+        'url.startsWith(http)': url.startsWith('http'),
         stackTrace: new Error().stack
       });
       
-      // Force correct URL
+      // Force correct URL - ALWAYS use /api/v1
       const correctBaseUrl = '/api/v1';
       url = `${correctBaseUrl}${endpoint}?${params}`;
       
-      console.log('[ApiService.getIssueStatusDuration] Fixed URL:', url);
+      console.error('[ApiService.getIssueStatusDuration] ✅ FIXED URL:', {
+        oldUrl: `${baseUrl}?${params}`,
+        newUrl: url,
+        'newUrl starts with /api': url.startsWith('/api/')
+      });
     }
     
     // Debug logging for Railway issue - first report using wrong URL
@@ -514,7 +541,37 @@ export class ApiService {
       timestamp: new Date().toISOString()
     });
     
-    console.log('[ApiService.getIssueStatusDuration] About to fetch:', url);
+    // FINAL CHECK: Ensure URL is relative (not absolute) before fetch
+    // If somehow it's an absolute URL pointing to backend, convert to relative
+    if (url.startsWith('http')) {
+      console.error('[ApiService.getIssueStatusDuration] ❌❌❌ ABSOLUTE URL DETECTED! Converting to relative:', {
+        absoluteUrl: url,
+        'Extracting path': url.replace(/^https?:\/\/[^\/]+/, '')
+      });
+      
+      // Extract just the path part
+      const urlObj = new URL(url);
+      url = urlObj.pathname + urlObj.search;
+      
+      // If still missing /api, add it
+      if (!url.startsWith('/api/')) {
+        url = `/api/v1${endpoint}?${params}`;
+      }
+      
+      console.error('[ApiService.getIssueStatusDuration] ✅ CONVERTED TO RELATIVE:', url);
+    }
+    
+    // ONE MORE CHECK: If URL doesn't start with /api/, force it
+    if (!url.startsWith('/api/')) {
+      console.error('[ApiService.getIssueStatusDuration] ❌❌❌ FINAL CHECK FAILED - FORCING /api/', {
+        currentUrl: url,
+        endpoint
+      });
+      url = `/api/v1${endpoint}?${params}`;
+      console.error('[ApiService.getIssueStatusDuration] ✅ FINAL FIXED URL:', url);
+    }
+    
+    console.log('[ApiService.getIssueStatusDuration] About to fetch:', url, '| isRelative:', url.startsWith('/'), '| startsWith /api:', url.startsWith('/api/'));
     const response = await fetch(url);
     console.log('[ApiService.getIssueStatusDuration] Fetch completed, status:', response.status, response.statusText);
     
