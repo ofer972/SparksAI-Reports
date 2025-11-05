@@ -502,7 +502,8 @@ export class ApiService {
     statusName: string,
     issueType?: string,
     teamName?: string,
-    period?: number
+    period?: number,
+    yearMonth?: string
   ): Promise<IssueStatusDurationIssue[]> {
     const params = new URLSearchParams();
     params.append('status_name', statusName);
@@ -517,6 +518,11 @@ export class ApiService {
     
     if (period) {
       params.append('months', period.toString());
+    }
+    
+    // Add year_month parameter for monthly view
+    if (yearMonth) {
+      params.append('year_month', yearMonth);
     }
 
     const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issueStatusDurationWithKeys)}?${params}`;

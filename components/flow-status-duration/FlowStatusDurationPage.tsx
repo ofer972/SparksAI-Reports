@@ -150,6 +150,9 @@ export default function FlowStatusDurationPage() {
         backgroundColor: monthlyColors[monthIndex % monthlyColors.length],
         borderColor: monthlyBorderColors[monthIndex % monthlyBorderColors.length],
         borderWidth: 1,
+        // Make bars thicker for monthly view
+        barThickness: 'flex' as const,
+        maxBarThickness: 50,
       }));
 
       return {
@@ -160,7 +163,7 @@ export default function FlowStatusDurationPage() {
   }, [viewMode, data, monthlyData]);
 
   // Handle bar click
-  const handleBarClick = async (statusName: string) => {
+  const handleBarClick = useCallback(async (statusName: string, yearMonth?: string) => {
     setSelectedStatus(statusName);
     setModalOpen(true);
     setModalLoading(true);
@@ -172,7 +175,8 @@ export default function FlowStatusDurationPage() {
         statusName,
         issueType || undefined,
         teamName || undefined,
-        period
+        period,
+        yearMonth // Pass year_month only for monthly view
       );
       setModalIssues(issues);
     } catch (err) {
@@ -180,7 +184,7 @@ export default function FlowStatusDurationPage() {
     } finally {
       setModalLoading(false);
     }
-  };
+  }, [issueType, teamName, period]);
   
   // Open Jira issue
   const openJiraIssue = (issueKey: string) => {
@@ -192,6 +196,10 @@ export default function FlowStatusDurationPage() {
   const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
+    // Make bars 20% wider in monthly view (default is 0.8, so 0.8 * 1.2 = 0.96)
+    // For grouped bars, we need to increase both to make them noticeably wider
+    barPercentage: viewMode === 'monthly' ? 1.0 : 0.8,
+    categoryPercentage: viewMode === 'monthly' ? 1.0 : 0.8,
     onClick: (event: any, elements: any[]) => {
       if (elements.length > 0) {
         const element = elements[0];
@@ -200,7 +208,14 @@ export default function FlowStatusDurationPage() {
         // Get status name from chartData labels (filtered data)
         const statusName = chartData.labels[statusIndex];
         if (statusName) {
-          handleBarClick(statusName);
+          // For monthly view, extract the year_month from the clicked month
+          let yearMonth: string | undefined;
+          if (viewMode === 'monthly') {
+            const monthIndex = element.datasetIndex;
+            // The month labels are in monthlyData.labels (format: "2024-01")
+            yearMonth = monthlyData.labels[monthIndex];
+          }
+          handleBarClick(statusName, yearMonth);
         }
       }
     },
@@ -305,7 +320,7 @@ export default function FlowStatusDurationPage() {
         },
       },
     },
-  }), [viewMode, data, monthlyData, chartData]);
+  }), [viewMode, data, monthlyData, chartData, handleBarClick]);
 
   return (
     <div className="space-y-4">
@@ -433,7 +448,7 @@ export default function FlowStatusDurationPage() {
             </div>
           </div>
           
-          <div className="h-96 w-[60%]">
+          <div className={`h-96 ${viewMode === 'monthly' ? 'w-[90%]' : 'w-[60%]'}`}>
             {(viewMode === 'total' ? data.length > 0 : monthlyData.datasets.length > 0) ? (
               <Bar data={chartData} options={chartOptions} />
             ) : (
