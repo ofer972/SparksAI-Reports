@@ -112,7 +112,7 @@ export default function EpicsHierarchyPage() {
       <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="w-[200px]">
+          <div className="w-full sm:w-[200px]">
             <label htmlFor="team-name" className="block text-sm font-medium text-gray-700 mb-1">
               Team Name
             </label>
@@ -126,7 +126,7 @@ export default function EpicsHierarchyPage() {
             />
           </div>
           
-          <div className="w-[200px]">
+          <div className="w-full sm:w-[200px]">
             <label htmlFor="pi-name" className="block text-sm font-medium text-gray-700 mb-1">
               PI Name
             </label>
@@ -140,11 +140,11 @@ export default function EpicsHierarchyPage() {
             />
           </div>
 
-          <div>
+          <div className="w-full sm:w-auto">
             <button
               onClick={fetchData}
               disabled={loading}
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              className="w-full sm:w-auto px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Loading...' : 'Apply Filters'}
             </button>

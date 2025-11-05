@@ -328,7 +328,7 @@ export default function FlowStatusDurationPage() {
       <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="w-[200px]">
+          <div className="w-full sm:w-[200px]">
             <label htmlFor="issue-type" className="block text-sm font-medium text-gray-700 mb-1">
               Issue Type
             </label>
@@ -342,7 +342,7 @@ export default function FlowStatusDurationPage() {
             />
           </div>
           
-          <div className="w-[200px]">
+          <div className="w-full sm:w-[200px]">
             <label htmlFor="team-name-flow" className="block text-sm font-medium text-gray-700 mb-1">
               Team Name
             </label>
@@ -356,7 +356,7 @@ export default function FlowStatusDurationPage() {
             />
           </div>
 
-          <div className="w-[200px]">
+          <div className="w-full sm:w-[200px]">
             <label htmlFor="time-period-flow" className="block text-sm font-medium text-gray-700 mb-1">
               Time Period
             </label>
@@ -372,11 +372,11 @@ export default function FlowStatusDurationPage() {
             </select>
           </div>
 
-          <div>
+          <div className="w-full sm:w-auto">
             <button
               onClick={fetchData}
               disabled={loading}
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              className="w-full sm:w-auto px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Loading...' : 'Apply Filters'}
             </button>
@@ -413,7 +413,7 @@ export default function FlowStatusDurationPage() {
       {!loading && !error && (
         <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
           {/* Chart Header with Toggle */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <h2 className="text-lg font-semibold text-gray-900">
               Flow Status Distribution
             </h2>
@@ -448,7 +448,7 @@ export default function FlowStatusDurationPage() {
             </div>
           </div>
           
-          <div className={`h-96 ${viewMode === 'monthly' ? 'w-[90%]' : 'w-[60%]'}`}>
+          <div className={`h-96 w-full ${viewMode === 'monthly' ? 'lg:w-[90%]' : 'lg:w-[60%]'}`}>
             {(viewMode === 'total' ? data.length > 0 : monthlyData.datasets.length > 0) ? (
               <Bar data={chartData} options={chartOptions} />
             ) : (

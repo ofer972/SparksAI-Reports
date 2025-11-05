@@ -246,7 +246,7 @@ export default function ReleasePredictabilityPage() {
       <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
         <div className="flex flex-wrap items-end gap-4">
-          <div className="w-[200px]">
+          <div className="w-full sm:w-[200px]">
             <label htmlFor="time-period" className="block text-sm font-medium text-gray-700 mb-1">
               Time Period
             </label>

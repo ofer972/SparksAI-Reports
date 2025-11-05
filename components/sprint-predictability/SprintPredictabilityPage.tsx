@@ -238,7 +238,7 @@ export default function SprintPredictabilityPage() {
 
       {/* Table */}
       {!loading && !error && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-[50%]">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full lg:w-[50%]">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
