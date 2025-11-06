@@ -369,7 +369,7 @@ export async function deleteTeam(teamName: string): Promise<void> {
  */
 export async function connectTeamToGroup(teamName: string, groupName: string): Promise<void> {
   // Use the bulk function for single team
-  return connectTeamsToGroup([teamName], groupName);
+  await connectTeamsToGroup([teamName], groupName);
 }
 
 /**
