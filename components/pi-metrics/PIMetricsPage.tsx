@@ -109,15 +109,12 @@ export default function PIMetricsPage() {
       setLoading(true);
       try {
         const response = await apiService.getPIStatusForToday(selectedPI);
-        console.log('PI Status Response:', response);
         // Use the first item from the array, or aggregate if needed
         if (response.data && response.data.length > 0) {
           const firstItem = response.data[0];
-          console.log('First item:', firstItem);
           // Extract fields from response
           const statusValue = firstItem['progress_delta_pct_status'];
           const progressValue = firstItem['progress_delta_pct'];
-          console.log('Progress value:', progressValue, 'Status:', statusValue);
           setEpicClosureData({
             value: progressValue,
             color: statusValue,
@@ -126,7 +123,6 @@ export default function PIMetricsPage() {
             idealRemaining: firstItem['ideal_remaining'],
           });
         } else {
-          console.log('No data in response');
           setEpicClosureData({});
         }
       } catch (err) {
@@ -217,14 +213,11 @@ export default function PIMetricsPage() {
         
         // Fetch Epic Closure
         const response = await apiService.getPIStatusForToday(piName);
-        console.log('PI Status Response (from Apply):', response);
         if (response.data && response.data.length > 0) {
           const firstItem = response.data[0];
-          console.log('First item (from Apply):', firstItem);
           // Extract fields from response
           const statusValue = firstItem['progress_delta_pct_status'];
           const progressValue = firstItem['progress_delta_pct'];
-          console.log('Progress value (from Apply):', progressValue, 'Status:', statusValue);
           setEpicClosureData({
             value: progressValue,
             color: statusValue,
@@ -233,7 +226,6 @@ export default function PIMetricsPage() {
             idealRemaining: firstItem['ideal_remaining'],
           });
         } else {
-          console.log('No data in response (from Apply)');
           setEpicClosureData({});
         }
 

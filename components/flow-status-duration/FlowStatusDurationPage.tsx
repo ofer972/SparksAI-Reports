@@ -81,6 +81,11 @@ export default function FlowStatusDurationPage() {
       } else {
         setMonthlyData({ labels: [], datasets: [] });
       }
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Flow Status Duration API Error:', {
+          error: err,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -180,7 +185,13 @@ export default function FlowStatusDurationPage() {
       );
       setModalIssues(issues);
     } catch (err) {
-      setModalError(err instanceof Error ? err.message : 'Failed to fetch issue details');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch issue details';
+      setModalError(errorMessage);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Flow Status Duration Modal API Error:', {
+          error: err,
+        });
+      }
     } finally {
       setModalLoading(false);
     }

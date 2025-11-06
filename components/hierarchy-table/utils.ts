@@ -8,10 +8,6 @@ export function buildTree(items: HierarchyItem[]): TreeNode[] {
   const itemMap = new Map<string, TreeNode>();
   const roots: TreeNode[] = [];
 
-  // Debug logging
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Building tree from items:', items);
-  }
 
   // First pass: create all nodes
   items.forEach(item => {
@@ -35,21 +31,11 @@ export function buildTree(items: HierarchyItem[]): TreeNode[] {
       parent.children.push(node);
       node.level = parent.level + 1;
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Added child ${item.key} to parent ${item.parent}`);
-      }
     } else {
       roots.push(node);
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Added root item: ${item.key}, parent was: ${item.parent}`);
-      }
     }
   });
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Tree roots:', roots);
-    console.log('Roots with children:', roots.filter(r => r.children && r.children.length > 0));
-  }
 
   // Sort children by key for consistent display
   const sortChildren = (nodes: TreeNode[]) => {

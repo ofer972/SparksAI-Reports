@@ -135,7 +135,6 @@ export class ApiService {
     }
 
     const result: ApiResponse<PIStatusForTodayItem[]> = await response.json();
-    console.log('Raw API response:', result);
     
     if (result.success && result.data) {
       // result.data is an array of PIStatusForTodayItem
@@ -145,11 +144,9 @@ export class ApiService {
         count: result.data.length,
         message: result.message || '',
       };
-      console.log('Parsed response data:', responseData);
       return responseData;
     }
     
-    console.log('No success or no data in response');
     return { data: [], count: 0, message: '' };
   }
 
@@ -223,7 +220,6 @@ export class ApiService {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('PI Burndown API Error:', response.status, errorText);
       throw new Error(`Failed to fetch PI burndown data: ${response.statusText}`);
     }
 
@@ -390,7 +386,6 @@ export class ApiService {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('PI Predictability API Error:', response.status, errorText);
       throw new Error(`Failed to fetch PI predictability data: ${response.statusText}`);
     }
 
@@ -460,11 +455,6 @@ export class ApiService {
     
     // Transform the response to match HierarchyItem structure
     if (result.success && result.data && result.data.issues) {
-      // Debug: log first item to see actual field names
-      if (process.env.NODE_ENV === 'development' && result.data.issues.length > 0) {
-        console.log('Sample API item (first item):', result.data.issues[0]);
-        console.log('All field names in first item:', Object.keys(result.data.issues[0]));
-      }
       
       const transformed = result.data.issues.map((item: any) => {
         // Try multiple possible field names for key, summary, and parent
@@ -493,23 +483,10 @@ export class ApiService {
           }, {} as any),
         };
         
-        // Debug logging in development
-        if (process.env.NODE_ENV === 'development' && transformed.key === '') {
-          console.warn('Empty key found! Original item:', item);
-        }
         
         return transformed;
       });
       
-      // Debug logging
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Total items:', transformed.length);
-        console.log('Items with parent:', transformed.filter(i => i.parent).length);
-        console.log('Items with empty key:', transformed.filter(i => !i.key || i.key === '').length);
-        if (transformed.length > 0) {
-          console.log('Sample transformed item:', transformed[0]);
-        }
-      }
       
       return transformed;
     }

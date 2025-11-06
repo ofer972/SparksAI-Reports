@@ -27,14 +27,7 @@ export default function HierarchyTable({
 
   // Build tree structure from flat data
   const tree = useMemo(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('HierarchyTable: Building tree from data:', data);
-    }
-    const result = buildTree(data);
-    if (process.env.NODE_ENV === 'development') {
-      console.log('HierarchyTable: Tree result:', result);
-    }
-    return result;
+    return buildTree(data);
   }, [data]);
 
   // Get all expanded keys

@@ -29,8 +29,14 @@ export default function EpicsHierarchyPage() {
       );
       setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch hierarchy data');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch hierarchy data';
+      setError(errorMessage);
       setData([]);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Epics Hierarchy API Error:', {
+          error: err,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -184,7 +190,6 @@ export default function EpicsHierarchyPage() {
           columns={columns}
           defaultExpanded={false}
           onRowClick={(item) => {
-            console.log('Row clicked:', item);
             // You can add navigation or modal opening here
           }}
         />

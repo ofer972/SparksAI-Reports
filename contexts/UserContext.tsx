@@ -51,8 +51,7 @@ export function UserProvider({ children }: UserProviderProps) {
  * ```tsx
  * const { user, loading, error } = useUser();
  * if (user) {
- *   console.log('Current user ID:', user.id);
- *   console.log('Current user name:', user.name);
+ *   // Access user data
  * }
  * ```
  */
@@ -74,7 +73,7 @@ export function useUser(): UserContextType {
  * ```tsx
  * const userId = useUserId();
  * if (userId) {
- *   console.log('User ID:', userId);
+ *   // Access user ID
  * }
  * ```
  */

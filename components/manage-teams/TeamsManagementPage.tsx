@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getGroupsHierarchy,
   getAllTeams,
@@ -12,6 +13,7 @@ import {
   updateTeam,
   deleteTeam,
   connectTeamToGroup,
+  connectTeamsToGroup,
   disconnectTeamFromGroup,
   getChildGroups,
   isLeafGroup,
@@ -32,8 +34,10 @@ export default function TeamsManagementPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [teams, setTeams] = useState<Team[]>([]); // Teams for selected group
   const [allTeams, setAllTeams] = useState<Team[]>([]); // All teams (for connecting)
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Initial data loading
+  const [operationLoading, setOperationLoading] = useState(false); // Loading for user operations
   const [error, setError] = useState<string | null>(null);
+  
   
   // UI state
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
@@ -82,10 +86,8 @@ export default function TeamsManagementPage() {
   const fetchAllTeams = async () => {
     try {
       const allTeamsData = await getAllTeams();
-      console.log('fetchAllTeams: Received teams data:', allTeamsData);
       setAllTeams(allTeamsData);
     } catch (err) {
-      console.error('Failed to fetch all teams:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch all teams';
       setError(errorMessage);
       // Set empty array on error so UI doesn't break
@@ -180,23 +182,27 @@ export default function TeamsManagementPage() {
   // Group operations
   const handleAddRootGroup = async () => {
     if (!newGroupName.trim()) return;
+    setOperationLoading(true);
     setError(null); // Clear previous errors
     try {
-      console.log('Adding root group:', newGroupName);
       await createGroup(newGroupName);
       await fetchGroups();
       setNewGroupName('');
       setShowAddGroupModal(false);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create group';
-      console.error('Error creating group:', err);
       setError(errorMessage);
       // Keep modal open so user can see the error and try again
+    } finally {
+      setOperationLoading(false);
     }
   };
 
   const handleAddSubgroup = async (parentId: number) => {
     if (!newGroupName.trim()) return;
+    setOperationLoading(true);
+    setError(null);
+    
     try {
       const parentGroup = findGroupById(parentId, groups);
       if (!parentGroup) {
@@ -209,6 +215,8 @@ export default function TeamsManagementPage() {
       setExpandedGroups(prev => new Set([...Array.from(prev), parentId]));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create subgroup');
+    } finally {
+      setOperationLoading(false);
     }
   };
 
@@ -219,6 +227,9 @@ export default function TeamsManagementPage() {
 
   const handleSaveGroup = async (groupId: number) => {
     if (!editingGroupName.trim()) return;
+    setOperationLoading(true);
+    setError(null);
+    
     try {
       const group = findGroupById(groupId, groups);
       if (!group) {
@@ -234,6 +245,8 @@ export default function TeamsManagementPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update group');
+    } finally {
+      setOperationLoading(false);
     }
   };
 
@@ -245,6 +258,9 @@ export default function TeamsManagementPage() {
     if (!confirm(`Delete "${group.name}"? This will also delete all subgroups and disconnect teams.`)) {
       return;
     }
+    setOperationLoading(true);
+    setError(null);
+    
     try {
       await deleteGroup(group.name);
       if (selectedGroupId === groupId) {
@@ -254,15 +270,17 @@ export default function TeamsManagementPage() {
       await fetchGroups();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete group');
+    } finally {
+      setOperationLoading(false);
     }
   };
 
   // Team operations
   const handleAddTeam = async () => {
     if (!newTeamName.trim()) return;
+    setOperationLoading(true);
     setError(null); // Clear previous errors
     try {
-      console.log('Adding team:', newTeamName);
       await createTeam(newTeamName);
       await fetchAllTeams(); // Refresh all teams list
       setNewTeamName('');
@@ -279,9 +297,10 @@ export default function TeamsManagementPage() {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create team';
-      console.error('Error creating team:', err);
       setError(errorMessage);
       // Keep modal open so user can see the error and try again
+    } finally {
+      setOperationLoading(false);
     }
   };
 
@@ -292,6 +311,9 @@ export default function TeamsManagementPage() {
 
   const handleSaveTeam = async (teamName: string) => {
     if (!editingTeamName.trim()) return;
+    setOperationLoading(true);
+    setError(null);
+    
     try {
       await updateTeam(teamName, { teamName: editingTeamName.trim() });
       // Refresh teams for selected group
@@ -305,11 +327,16 @@ export default function TeamsManagementPage() {
       setEditingTeamName('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update team');
+    } finally {
+      setOperationLoading(false);
     }
   };
 
   const handleDeleteTeam = async (teamName: string) => {
     if (!confirm(`Delete team "${teamName}"?`)) return;
+    setOperationLoading(true);
+    setError(null);
+    
     try {
       await deleteTeam(teamName);
       await fetchAllTeams(); // Refresh all teams
@@ -322,6 +349,8 @@ export default function TeamsManagementPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete team');
+    } finally {
+      setOperationLoading(false);
     }
   };
 
@@ -340,6 +369,9 @@ export default function TeamsManagementPage() {
   };
 
   const handleDisconnectTeam = async (groupId: number, teamName: string) => {
+    setOperationLoading(true);
+    setError(null);
+    
     try {
       const group = findGroupById(groupId, groups);
       if (group) {
@@ -349,6 +381,8 @@ export default function TeamsManagementPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to disconnect team');
+    } finally {
+      setOperationLoading(false);
     }
   };
 
@@ -380,27 +414,22 @@ export default function TeamsManagementPage() {
 
   // Handle multi-select team connection
   const handleConnectMultipleTeams = async (groupId: number, teamNames: string[]) => {
-    console.log('🔵 handleConnectMultipleTeams called:', { groupId, teamNames, teamCount: teamNames.length });
     if (teamNames.length === 0) {
-      console.log('⚠️ No teams selected, returning early');
       return;
     }
     
+    setOperationLoading(true);
+    setError(null);
+    
     try {
       const group = findGroupById(groupId, groups);
-      console.log('🔵 Found group:', group);
       if (!group) {
-        console.log('❌ Group not found for id:', groupId);
+        setOperationLoading(false);
         return;
       }
 
-      // Connect all selected teams
-      console.log('🔵 Starting to connect teams...');
-      for (const teamName of teamNames) {
-        console.log('🔵 Connecting team:', teamName, 'to group:', group.name);
-        await connectTeamToGroup(teamName, group.name);
-        console.log('✅ Successfully connected team:', teamName);
-      }
+      // Connect all selected teams in one bulk call
+      const result = await connectTeamsToGroup(teamNames, group.name);
 
       // Refresh data
       await fetchTeamsForGroup(group.name);
@@ -412,6 +441,8 @@ export default function TeamsManagementPage() {
       setConnectModalSearchQuery('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect teams');
+    } finally {
+      setOperationLoading(false);
     }
   };
 
@@ -617,6 +648,40 @@ export default function TeamsManagementPage() {
         </div>
       )}
 
+      {/* Operation Loading Overlay - Using portal to render at document root */}
+      {(() => {
+        if (operationLoading && typeof document !== 'undefined') {
+          return createPortal(
+            <div 
+              className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30" 
+              style={{ 
+                zIndex: 99999,
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                pointerEvents: 'auto'
+              }}
+            >
+              <div className="bg-white rounded-lg shadow-xl p-8 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="mt-4 text-gray-600">Processing...</p>
+              </div>
+            </div>,
+            document.body
+          );
+        }
+        return null;
+      })()}
+
+      {/* TEST: Show operationLoading state in UI for debugging */}
+      {operationLoading && (
+        <div className="bg-yellow-100 border border-yellow-400 p-2 text-xs">
+          DEBUG: operationLoading = TRUE (spinner should be visible)
+        </div>
+      )}
+
       {/* Compact Header */}
       <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
         <h2 className="text-base font-semibold text-gray-900">Manage Teams & Groups</h2>
@@ -701,6 +766,7 @@ export default function TeamsManagementPage() {
                 isLeafGroup={isLeafGroup}
                 editingTeam={editingTeam}
                 editingTeamName={editingTeamName}
+                operationLoading={operationLoading}
                 onStartEdit={handleStartEditTeam}
                 onSave={handleSaveTeam}
                 onCancelEdit={() => {
@@ -724,6 +790,7 @@ export default function TeamsManagementPage() {
                 onSearchChange={setTeamSearchQuery}
                 editingTeam={editingTeam}
                 editingTeamName={editingTeamName}
+                operationLoading={operationLoading}
                 onStartEdit={handleStartEditTeam}
                 onSave={handleSaveTeam}
                 onCancelEdit={() => {
@@ -1011,24 +1078,27 @@ export default function TeamsManagementPage() {
               </span>
               <button
                 type="button"
-                onClick={(e) => {
-                  console.log('🔴 Connect button clicked!', { 
-                    selectedTeamsCount: selectedTeamsForConnect.size,
-                    showConnectTeamModal,
-                    selectedTeams: Array.from(selectedTeamsForConnect)
-                  });
-                  e.preventDefault();
-                  e.stopPropagation();
+                onClick={async (e) => {
+                  try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (!showConnectTeamModal) {
+                      return;
+                  }
                   
-                  if (!showConnectTeamModal) {
-                    console.log('❌ showConnectTeamModal is null, cannot connect');
+                  if (selectedTeamsForConnect.size === 0) {
                     return;
                   }
                   
                   const selectedTeamNames = Array.from(selectedTeamsForConnect);
-                  console.log('🔴 Calling handleConnectMultipleTeams with:', { groupId: showConnectTeamModal, teamNames: selectedTeamNames });
-                  handleConnectMultipleTeams(showConnectTeamModal, selectedTeamNames);
-                }}
+                  
+                  // Call the handler and await it to catch any errors
+                  await handleConnectMultipleTeams(showConnectTeamModal, selectedTeamNames);
+                } catch (error) {
+                  setError(error instanceof Error ? error.message : 'Failed to connect teams');
+                }
+              }}
                 disabled={selectedTeamsForConnect.size === 0}
                 className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
@@ -1051,6 +1121,7 @@ function GroupTeamsTab({
   isLeafGroup,
   editingTeam,
   editingTeamName,
+  operationLoading,
   onStartEdit,
   onSave,
   onCancelEdit,
@@ -1067,6 +1138,7 @@ function GroupTeamsTab({
   isLeafGroup: (groupId: number, allGroups: Group[]) => boolean;
   editingTeam: string | null;
   editingTeamName: string;
+  operationLoading: boolean;
   onStartEdit: (team: Team) => void;
   onSave: (teamName: string) => void;
   onCancelEdit: () => void;
@@ -1107,6 +1179,7 @@ function GroupTeamsTab({
                     team={team}
                     editingTeam={editingTeam}
                     editingTeamName={editingTeamName}
+                    operationLoading={operationLoading}
                     onStartEdit={onStartEdit}
                     onSave={onSave}
                     onCancelEdit={onCancelEdit}
@@ -1134,6 +1207,7 @@ function GroupTeamsTab({
               team={team}
               editingTeam={editingTeam}
               editingTeamName={editingTeamName}
+              operationLoading={operationLoading}
               onStartEdit={onStartEdit}
               onSave={onSave}
               onCancelEdit={onCancelEdit}
@@ -1154,6 +1228,7 @@ function AllTeamsTab({
   onSearchChange,
   editingTeam,
   editingTeamName,
+  operationLoading,
   onStartEdit,
   onSave,
   onCancelEdit,
@@ -1166,6 +1241,7 @@ function AllTeamsTab({
   onSearchChange: (query: string) => void;
   editingTeam: string | null;
   editingTeamName: string;
+  operationLoading: boolean;
   onStartEdit: (team: Team) => void;
   onSave: (teamName: string) => void;
   onCancelEdit: () => void;
@@ -1175,7 +1251,6 @@ function AllTeamsTab({
 }) {
   // Filter teams based on search query
   const filteredTeams = useMemo(() => {
-    console.log('AllTeamsTab: allTeams prop:', allTeams, 'count:', allTeams.length);
     if (!teamSearchQuery.trim()) return allTeams;
     const query = teamSearchQuery.toLowerCase();
     return allTeams.filter(team =>
@@ -1319,6 +1394,7 @@ function TeamItem({
   team,
   editingTeam,
   editingTeamName,
+  operationLoading,
   onStartEdit,
   onSave,
   onCancelEdit,
@@ -1329,6 +1405,7 @@ function TeamItem({
   team: Team;
   editingTeam: string | null;
   editingTeamName: string;
+  operationLoading: boolean;
   onStartEdit: (team: Team) => void;
   onSave: (teamName: string) => void;
   onCancelEdit: () => void;
@@ -1419,7 +1496,7 @@ function TeamItem({
 // Compact Modal Component
 function Modal({ title, children, onClose, wide = false }: { title: string; children: React.ReactNode; onClose: () => void; wide?: boolean }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50">
       <div className={`bg-white rounded-lg shadow-xl ${wide ? 'max-w-3xl w-full mx-4' : 'max-w-sm w-full mx-4'}`}>
         <div className="p-3 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
