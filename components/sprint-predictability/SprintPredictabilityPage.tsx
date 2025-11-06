@@ -70,7 +70,7 @@ export default function SprintPredictabilityPage() {
     {
       accessorKey: 'sprint_name',
       header: 'SPRINT NAME',
-      size: 90,
+      size: 80,
       cell: ({ getValue }) => {
         const value = getValue() as string;
         return (
@@ -83,7 +83,7 @@ export default function SprintPredictabilityPage() {
     {
       accessorKey: 'sprint_official_end_date',
       header: 'END DATE',
-      size: 100,
+      size: 80,
       cell: ({ getValue }) => {
         const value = getValue() as string;
         if (!value) return <div className="text-sm text-gray-500 text-center">-</div>;
@@ -99,7 +99,7 @@ export default function SprintPredictabilityPage() {
     {
       accessorKey: 'sprint_predictability',
       header: 'PREDICTABILITY %',
-      size: 90,
+      size: 80,
       cell: ({ getValue }) => {
         const value = getValue() as number;
         // sprint_predictability is a decimal (0-1), multiply by 100 to get percentage
@@ -201,7 +201,7 @@ export default function SprintPredictabilityPage() {
     {
       id: 'jira_link',
       header: 'NOT COMPLETED',
-      size: 100,
+      size: 80,
       cell: ({ row }) => {
         const item = row.original;
         const issueKeys = item.issues_not_completed_keys || [];
@@ -336,7 +336,7 @@ export default function SprintPredictabilityPage() {
 
       {/* Table */}
       {!loading && !error && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full max-w-[75%]">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full max-w-[60%]">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>

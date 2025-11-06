@@ -20,6 +20,24 @@ export const API_CONFIG = {
     // Team endpoints
     teams: {
       getNames: '/teams/getNames',
+      getAll: '/teams',
+      getByGroup: '/teams/by-group',
+      getByName: '/teams',
+      create: '/teams',
+      update: '/teams',
+      delete: '/teams',
+      addToGroup: '/teams',
+      removeFromGroup: '/teams',
+    },
+    
+    // Groups endpoints
+    groups: {
+      getAll: '/groups',
+      getHierarchy: '/groups/hierarchy',
+      getByName: '/groups',
+      create: '/groups',
+      update: '/groups',
+      delete: '/groups',
     },
     
     // PI endpoints
@@ -483,6 +501,7 @@ export interface IssuesByTeamResponse {
   };
   message: string;
 }
+
 
 
 
