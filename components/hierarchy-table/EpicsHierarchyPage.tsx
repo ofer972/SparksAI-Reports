@@ -179,33 +179,15 @@ export default function EpicsHierarchyPage() {
 
       {/* Table */}
       {!loading && !error && (
-        <>
-          {/* Debug info - remove in production */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="bg-gray-100 p-2 text-xs mb-2 rounded space-y-1">
-              <div><strong>Debug:</strong> {data.length} items loaded.</div>
-              <div>Items with parent: {data.filter(item => item.parent).length}</div>
-              <div>Items with empty key: {data.filter(item => !item.key || item.key === '').length}</div>
-              {data.length > 0 && (
-                <details className="mt-2">
-                  <summary className="cursor-pointer">View first item</summary>
-                  <pre className="mt-1 text-xs overflow-auto max-h-40">
-                    {JSON.stringify(data[0], null, 2)}
-                  </pre>
-                </details>
-              )}
-            </div>
-          )}
-          <HierarchyTable
-            data={data}
-            columns={columns}
-            defaultExpanded={false}
-            onRowClick={(item) => {
-              console.log('Row clicked:', item);
-              // You can add navigation or modal opening here
-            }}
-          />
-        </>
+        <HierarchyTable
+          data={data}
+          columns={columns}
+          defaultExpanded={false}
+          onRowClick={(item) => {
+            console.log('Row clicked:', item);
+            // You can add navigation or modal opening here
+          }}
+        />
       )}
     </div>
   );

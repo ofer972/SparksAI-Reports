@@ -438,7 +438,7 @@ export default function TeamsManagementPage() {
           }`}
           style={{ paddingLeft: `${node.level * 16 + 4}px` }}
           onClick={() => {
-            if (!isVirtualRoot && isLeaf) {
+            if (!isVirtualRoot) {
               setSelectedGroupId(node.group.id);
             }
           }}
