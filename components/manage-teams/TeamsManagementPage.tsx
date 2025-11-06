@@ -380,15 +380,26 @@ export default function TeamsManagementPage() {
 
   // Handle multi-select team connection
   const handleConnectMultipleTeams = async (groupId: number, teamNames: string[]) => {
-    if (teamNames.length === 0) return;
+    console.log('🔵 handleConnectMultipleTeams called:', { groupId, teamNames, teamCount: teamNames.length });
+    if (teamNames.length === 0) {
+      console.log('⚠️ No teams selected, returning early');
+      return;
+    }
     
     try {
       const group = findGroupById(groupId, groups);
-      if (!group) return;
+      console.log('🔵 Found group:', group);
+      if (!group) {
+        console.log('❌ Group not found for id:', groupId);
+        return;
+      }
 
       // Connect all selected teams
+      console.log('🔵 Starting to connect teams...');
       for (const teamName of teamNames) {
+        console.log('🔵 Connecting team:', teamName, 'to group:', group.name);
         await connectTeamToGroup(teamName, group.name);
+        console.log('✅ Successfully connected team:', teamName);
       }
 
       // Refresh data
@@ -1001,9 +1012,21 @@ export default function TeamsManagementPage() {
               <button
                 type="button"
                 onClick={(e) => {
+                  console.log('🔴 Connect button clicked!', { 
+                    selectedTeamsCount: selectedTeamsForConnect.size,
+                    showConnectTeamModal,
+                    selectedTeams: Array.from(selectedTeamsForConnect)
+                  });
                   e.preventDefault();
                   e.stopPropagation();
+                  
+                  if (!showConnectTeamModal) {
+                    console.log('❌ showConnectTeamModal is null, cannot connect');
+                    return;
+                  }
+                  
                   const selectedTeamNames = Array.from(selectedTeamsForConnect);
+                  console.log('🔴 Calling handleConnectMultipleTeams with:', { groupId: showConnectTeamModal, teamNames: selectedTeamNames });
                   handleConnectMultipleTeams(showConnectTeamModal, selectedTeamNames);
                 }}
                 disabled={selectedTeamsForConnect.size === 0}

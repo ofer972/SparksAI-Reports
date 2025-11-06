@@ -390,15 +390,25 @@ export async function deleteTeam(teamName: string): Promise<void> {
  * Endpoint: POST /api/v1/teams/{team_name}/groups/{group_name}
  */
 export async function connectTeamToGroup(teamName: string, groupName: string): Promise<void> {
+  console.log('🟢 connectTeamToGroup function called:', { teamName, groupName });
   const url = buildBackendUrl(`${API_CONFIG.endpoints.teams.addToGroup}/${encodeURIComponent(teamName)}/groups/${encodeURIComponent(groupName)}`);
-  console.log('Connecting team to group:', { url, method: 'POST', teamName, groupName });
+  console.log('🟢 Connecting team to group - Request details:', { 
+    url, 
+    method: 'POST', 
+    teamName, 
+    groupName,
+    encodedTeamName: encodeURIComponent(teamName),
+    encodedGroupName: encodeURIComponent(groupName)
+  });
   
+  console.log('🟢 About to call fetch with POST method...');
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
   });
+  console.log('🟢 Fetch response received:', { status: response.status, statusText: response.statusText, ok: response.ok });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
