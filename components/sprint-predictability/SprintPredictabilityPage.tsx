@@ -70,7 +70,7 @@ export default function SprintPredictabilityPage() {
     {
       accessorKey: 'sprint_name',
       header: 'SPRINT NAME',
-      size: 200,
+      size: 90,
       cell: ({ getValue }) => {
         const value = getValue() as string;
         return (
@@ -81,9 +81,25 @@ export default function SprintPredictabilityPage() {
       },
     },
     {
-      accessorKey: 'sprint_predictability',
-      header: 'SPRINT PREDICTABILITY %',
+      accessorKey: 'sprint_official_end_date',
+      header: 'END DATE',
       size: 100,
+      cell: ({ getValue }) => {
+        const value = getValue() as string;
+        if (!value) return <div className="text-sm text-gray-500 text-center">-</div>;
+        const date = new Date(value);
+        const formatted = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        return (
+          <div className="text-sm text-gray-700 text-center">
+            {formatted}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'sprint_predictability',
+      header: 'PREDICTABILITY %',
+      size: 90,
       cell: ({ getValue }) => {
         const value = getValue() as number;
         // sprint_predictability is a decimal (0-1), multiply by 100 to get percentage
@@ -99,8 +115,8 @@ export default function SprintPredictabilityPage() {
     },
     {
       accessorKey: 'avg_story_cycle_time',
-      header: 'AVG. STORY CYCLE TIME (DAYS)',
-      size: 120,
+      header: 'AVG CYCLE TIME',
+      size: 80,
       cell: ({ getValue }) => {
         const value = getValue() as number;
         const formatted = typeof value === 'number' ? value.toFixed(1) : '0.0';
@@ -113,18 +129,86 @@ export default function SprintPredictabilityPage() {
       },
     },
     {
+      id: 'completed_issue_keys',
+      header: 'COMPLETED',
+      size: 80,
+      cell: ({ row }) => {
+        const item = row.original;
+        const issueKeys = item.completed_issue_keys || [];
+        
+        if (!issueKeys || issueKeys.length === 0) {
+          return (
+            <div className="text-sm text-gray-500 text-center">-</div>
+          );
+        }
+
+        const handleClick = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          const cleanJiraUrl = getCleanJiraUrl();
+          const keysParam = issueKeys.join(', ');
+          const jqlQuery = `key IN (${keysParam})`;
+          const encodedJql = encodeURIComponent(jqlQuery);
+          const jiraLink = `${cleanJiraUrl}/issues/?jql=${encodedJql}`;
+          window.open(jiraLink, '_blank');
+        };
+
+        return (
+          <div
+            className="text-sm font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer text-center"
+            onClick={handleClick}
+            title={issueKeys.join(', ')}
+          >
+            {issueKeys.length}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'total_committed_issue_keys',
+      header: 'COMMITTED',
+      size: 80,
+      cell: ({ row }) => {
+        const item = row.original;
+        const issueKeys = item.total_committed_issue_keys || [];
+        
+        if (!issueKeys || issueKeys.length === 0) {
+          return (
+            <div className="text-sm text-gray-500 text-center">-</div>
+          );
+        }
+
+        const handleClick = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          const cleanJiraUrl = getCleanJiraUrl();
+          const keysParam = issueKeys.join(', ');
+          const jqlQuery = `key IN (${keysParam})`;
+          const encodedJql = encodeURIComponent(jqlQuery);
+          const jiraLink = `${cleanJiraUrl}/issues/?jql=${encodedJql}`;
+          window.open(jiraLink, '_blank');
+        };
+
+        return (
+          <div
+            className="text-sm font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer text-center"
+            onClick={handleClick}
+            title={issueKeys.join(', ')}
+          >
+            {issueKeys.length}
+          </div>
+        );
+      },
+    },
+    {
       id: 'jira_link',
-      header: 'NOT COMPLETED ISSUES',
-      size: 140,
+      header: 'NOT COMPLETED',
+      size: 100,
       cell: ({ row }) => {
         const item = row.original;
         const issueKeys = item.issues_not_completed_keys || [];
         
         if (!issueKeys || issueKeys.length === 0) {
           return (
-            <div className="text-sm text-gray-500 text-center">
-              -
-            </div>
+            <div className="text-sm text-gray-500 text-center">-</div>
           );
         }
 
@@ -142,23 +226,37 @@ export default function SprintPredictabilityPage() {
 
         return (
           <div
-            className="text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer text-center"
+            className="text-sm font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer text-center"
             onClick={handleClick}
+            title={issueKeys.join(', ')}
           >
-{issueKeys.length} issue{issueKeys.length !== 1 ? 's' : ''}
+            {issueKeys.length}
           </div>
         );
       },
     },
   ], []);
 
-  // Filter data by sprint name
+  // Filter data by sprint name and remove rows with 0 or 0.0 predictability
   const filteredData = useMemo(() => {
-    if (!sprintNameFilter) return data;
-    const filterLower = sprintNameFilter.toLowerCase();
-    return data.filter(item => 
-      item.sprint_name.toLowerCase().includes(filterLower)
-    );
+    let result = data.filter(item => {
+      // Remove rows with 0 or 0.0 predictability
+      const predictability = item.sprint_predictability;
+      if (predictability === 0 || predictability === 0.0 || predictability === null || predictability === undefined) {
+        return false;
+      }
+      return true;
+    });
+
+    // Apply sprint name filter if provided
+    if (sprintNameFilter) {
+      const filterLower = sprintNameFilter.toLowerCase();
+      result = result.filter(item => 
+        item.sprint_name.toLowerCase().includes(filterLower)
+      );
+    }
+
+    return result;
   }, [data, sprintNameFilter]);
 
   const table = useReactTable({
@@ -238,7 +336,7 @@ export default function SprintPredictabilityPage() {
 
       {/* Table */}
       {!loading && !error && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full lg:w-[50%]">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full max-w-[75%]">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -249,12 +347,18 @@ export default function SprintPredictabilityPage() {
                       const isCycleTime = header.id === 'avg_story_cycle_time';
                       const isIssuesNotCompleted = header.id === 'issues_not_completed';
                       const isJiraLink = header.id === 'jira_link';
-                      const isCenterAligned = isPredictability || isCycleTime || isIssuesNotCompleted || isJiraLink;
+                      const isEndDate = header.id === 'sprint_official_end_date';
+                      const isCompletedKeys = header.id === 'completed_issue_keys';
+                      const isCommittedKeys = header.id === 'total_committed_issue_keys';
+                      const isCenterAligned = isPredictability || isCycleTime || isIssuesNotCompleted || isJiraLink || 
+                                             isEndDate || 
+                                             isCompletedKeys || isCommittedKeys;
+                      const isBoldHeader = isCompletedKeys || isCommittedKeys || isJiraLink;
                       
                       return (
                         <th
                           key={header.id}
-                          className={`px-2 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200 last:border-r-0 ${isCenterAligned ? 'text-center' : 'text-left'}`}
+                          className={`pl-1 pr-1 py-1 text-sm ${isBoldHeader ? 'font-bold' : 'font-semibold'} text-gray-700 uppercase tracking-wider border-r border-gray-200 last:border-r-0 ${isCenterAligned ? 'text-center' : 'text-left'}`}
                           style={{
                             width: header.getSize() !== 150 ? header.getSize() : undefined,
                           }}
@@ -303,12 +407,17 @@ export default function SprintPredictabilityPage() {
                           const isCycleTime = cell.column.id === 'avg_story_cycle_time';
                           const isIssuesNotCompleted = cell.column.id === 'issues_not_completed';
                           const isJiraLink = cell.column.id === 'jira_link';
-                          const isCenterAligned = isPredictability || isCycleTime || isIssuesNotCompleted || isJiraLink;
+                          const isEndDate = cell.column.id === 'sprint_official_end_date';
+                          const isCompletedKeys = cell.column.id === 'completed_issue_keys';
+                          const isCommittedKeys = cell.column.id === 'total_committed_issue_keys';
+                          const isCenterAligned = isPredictability || isCycleTime || isIssuesNotCompleted || isJiraLink || 
+                                                 isEndDate || 
+                                                 isCompletedKeys || isCommittedKeys;
                           
                           return (
                             <td
                               key={cell.id}
-                              className={`px-2 py-2 border-r border-gray-100 last:border-r-0 ${isCenterAligned ? 'text-center' : ''}`}
+                              className={`pl-1 pr-1 py-1 border-r border-gray-100 last:border-r-0 ${isCenterAligned ? 'text-center' : ''}`}
                               style={{
                                 width: cell.column.getSize() !== 150 ? cell.column.getSize() : undefined,
                               }}
