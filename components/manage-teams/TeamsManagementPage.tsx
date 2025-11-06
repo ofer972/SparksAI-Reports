@@ -66,15 +66,7 @@ export default function TeamsManagementPage() {
       setGroups(groupsData);
       // Expand all by default, including virtual root (id: -1)
       setExpandedGroups(new Set([-1, ...groupsData.map(g => g.id)]));
-      // Select first leaf group if available
-      if (groupsData.length > 0 && !selectedGroupId) {
-        const firstLeaf = groupsData.find(g => isLeafGroup(g.id, groupsData));
-        if (firstLeaf) {
-          setSelectedGroupId(firstLeaf.id);
-        } else {
-          setSelectedGroupId(groupsData[0].id);
-        }
-      }
+      // Don't auto-select a group - let user select one
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch groups');
     } finally {
@@ -108,15 +100,32 @@ export default function TeamsManagementPage() {
 
   useEffect(() => {
     fetchGroups();
-    fetchAllTeams(); // Fetch all teams on load
+    // Don't fetch all teams on load - only when needed
   }, []);
 
-  // Fetch teams when group is selected
+  // Fetch teams when group is selected (only when user manually selects)
   useEffect(() => {
     if (selectedGroupId) {
       fetchTeamsForGroup(selectedGroupId);
+    } else {
+      // Clear teams when no group is selected
+      setTeams([]);
     }
-  }, [selectedGroupId, groups]);
+  }, [selectedGroupId]);
+
+  // Fetch all teams when user switches to "All Teams" tab
+  useEffect(() => {
+    if (activeTab === 'all-teams' && allTeams.length === 0) {
+      fetchAllTeams();
+    }
+  }, [activeTab]);
+
+  // Fetch all teams when connect modal is opened
+  useEffect(() => {
+    if (showConnectTeamModal !== null && allTeams.length === 0) {
+      fetchAllTeams();
+    }
+  }, [showConnectTeamModal]);
 
   // Build tree structure from flat groups
   const buildTree = (allGroups: Group[]): TreeNode[] => {
@@ -470,7 +479,7 @@ export default function TeamsManagementPage() {
   };
 
   // Recursive component to render group tree nodes
-  const GroupTreeNode = ({ node }: { node: TreeNode }) => {
+  const GroupTreeNode = ({ node, disabled = false }: { node: TreeNode; disabled?: boolean }) => {
     const isExpanded = expandedGroups.has(node.group.id);
     const hasChildren = node.children.length > 0;
     const isLeaf = isLeafGroup(node.group.id, groups);
@@ -482,15 +491,17 @@ export default function TeamsManagementPage() {
         {/* Group Node */}
         <div 
           className={`flex items-center gap-1 py-1 px-1.5 rounded text-sm transition-colors ${
-            isVirtualRoot
-              ? 'bg-gray-100 cursor-default'
-              : isSelected 
-                ? 'bg-blue-100 border border-blue-300' 
-                : 'hover:bg-gray-50'
+            disabled
+              ? 'opacity-50 cursor-not-allowed'
+              : isVirtualRoot
+                ? 'bg-gray-100 cursor-default'
+                : isSelected 
+                  ? 'bg-blue-100 border border-blue-300' 
+                  : 'hover:bg-gray-50 cursor-pointer'
           }`}
           style={{ paddingLeft: `${node.level * 16 + 4}px` }}
           onClick={() => {
-            if (!isVirtualRoot) {
+            if (!disabled && !isVirtualRoot) {
               setSelectedGroupId(node.group.id);
             }
           }}
@@ -500,9 +511,14 @@ export default function TeamsManagementPage() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                toggleGroup(node.group.id);
+                if (!disabled) {
+                  toggleGroup(node.group.id);
+                }
               }}
-              className="p-0.5 text-gray-600 hover:text-gray-900 flex-shrink-0 w-4 h-4 flex items-center justify-center"
+              disabled={disabled}
+              className={`p-0.5 text-gray-600 flex-shrink-0 w-4 h-4 flex items-center justify-center ${
+                disabled ? 'cursor-not-allowed opacity-50' : 'hover:text-gray-900'
+              }`}
             >
               <svg
                 className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
@@ -570,51 +586,55 @@ export default function TeamsManagementPage() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-            {isVirtualRoot ? (
-              // Virtual root: only show +Sub button to add root groups
-              <button
-                onClick={() => {
-                  setShowAddGroupModal(true);
-                  setNewGroupName('');
-                  setError(null);
-                }}
-                className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                title="Add root group"
-              >
-                +Sub
-              </button>
-            ) : editingGroup !== node.group.id ? (
+            {!disabled && (
               <>
-                <button
-                  onClick={() => {
-                    setShowAddSubgroupModal(node.group.id);
-                    setNewGroupName('');
-                  }}
-                  className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                  title="Add subgroup"
-                >
-                  +Sub
-                </button>
-                <button
-                  onClick={() => handleStartEditGroup(node.group)}
-                  className="p-0.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
-                  title="Edit"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => handleDeleteGroup(node.group.id)}
-                  className="p-0.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
-                  title="Delete"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                {isVirtualRoot ? (
+                  // Virtual root: only show +Sub button to add root groups
+                  <button
+                    onClick={() => {
+                      setShowAddGroupModal(true);
+                      setNewGroupName('');
+                      setError(null);
+                    }}
+                    className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                    title="Add root group"
+                  >
+                    +Sub
+                  </button>
+                ) : editingGroup !== node.group.id ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowAddSubgroupModal(node.group.id);
+                        setNewGroupName('');
+                      }}
+                      className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                      title="Add subgroup"
+                    >
+                      +Sub
+                    </button>
+                    <button
+                      onClick={() => handleStartEditGroup(node.group)}
+                      className="p-0.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
+                      title="Edit"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteGroup(node.group.id)}
+                      className="p-0.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
+                      title="Delete"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </>
+                ) : null}
               </>
-            ) : null}
+            )}
           </div>
         </div>
 
@@ -622,7 +642,7 @@ export default function TeamsManagementPage() {
         {isExpanded && hasChildren && (
           <div>
             {node.children.map(child => (
-              <GroupTreeNode key={child.group.id} node={child} />
+              <GroupTreeNode key={child.group.id} node={child} disabled={disabled} />
             ))}
           </div>
         )}
@@ -700,7 +720,9 @@ export default function TeamsManagementPage() {
       {/* Two-Column Layout - Compact */}
       <div className="flex flex-col lg:flex-row gap-3">
         {/* Left Column: Groups Hierarchy */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 w-full lg:w-[37.5%] flex-shrink-0">
+        <div className={`bg-white rounded-lg shadow-sm border border-gray-200 w-full lg:w-[37.5%] flex-shrink-0 ${
+          activeTab === 'all-teams' ? 'opacity-50 pointer-events-none' : ''
+        }`}>
           <div className="p-2 border-b border-gray-200 bg-gray-50">
             <h3 className="text-sm font-semibold text-gray-900">Groups</h3>
           </div>
@@ -712,7 +734,11 @@ export default function TeamsManagementPage() {
             ) : (
               <div className="space-y-0.5">
                 {tree.map(node => (
-                  <GroupTreeNode key={node.group.id} node={node} />
+                  <GroupTreeNode 
+                    key={node.group.id} 
+                    node={node} 
+                    disabled={activeTab === 'all-teams'}
+                  />
                 ))}
               </div>
             )}
