@@ -206,7 +206,7 @@ export default function TeamsManagementPage() {
       await fetchGroups();
       setNewGroupName('');
       setShowAddSubgroupModal(null);
-      setExpandedGroups(prev => new Set([...prev, parentId]));
+      setExpandedGroups(prev => new Set([...Array.from(prev), parentId]));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create subgroup');
     }
@@ -586,7 +586,7 @@ export default function TeamsManagementPage() {
     );
   }
 
-  const selectedGroup = selectedGroupId ? findGroupById(selectedGroupId, groups) : null;
+  const selectedGroup = selectedGroupId ? findGroupById(selectedGroupId, groups) ?? null : null;
 
   return (
     <div className="space-y-3">
