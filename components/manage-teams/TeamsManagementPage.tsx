@@ -999,7 +999,10 @@ export default function TeamsManagementPage() {
                   : 'Select teams to connect'}
               </span>
               <button
-                onClick={() => {
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   const selectedTeamNames = Array.from(selectedTeamsForConnect);
                   handleConnectMultipleTeams(showConnectTeamModal, selectedTeamNames);
                 }}
