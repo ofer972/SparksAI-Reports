@@ -96,9 +96,9 @@ export default function TeamsManagementPage() {
   };
 
   // Fetch teams for a specific group
-  const fetchTeamsForGroup = async (groupName: string) => {
+  const fetchTeamsForGroup = async (groupId: number) => {
     try {
-      const response: TeamsByGroupResponse = await getTeamsByGroup(groupName);
+      const response: TeamsByGroupResponse = await getTeamsByGroup(groupId);
       setTeams(response.data.teams);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch teams');
@@ -114,10 +114,7 @@ export default function TeamsManagementPage() {
   // Fetch teams when group is selected
   useEffect(() => {
     if (selectedGroupId) {
-      const selectedGroup = findGroupById(selectedGroupId, groups);
-      if (selectedGroup) {
-        fetchTeamsForGroup(selectedGroup.name);
-      }
+      fetchTeamsForGroup(selectedGroupId);
     }
   }, [selectedGroupId, groups]);
 
@@ -162,8 +159,8 @@ export default function TeamsManagementPage() {
 
   // Get all teams not in any group (unassigned)
   const unassignedTeams = useMemo(() => {
-    // Teams that don't have any group_names or have empty group_names
-    return allTeams.filter(t => !t.group_names || t.group_names.length === 0);
+    // Teams that have group_key === null
+    return allTeams.filter(t => t.group_key === null);
   }, [allTeams]);
 
   // Toggle group expansion
@@ -208,7 +205,7 @@ export default function TeamsManagementPage() {
       if (!parentGroup) {
         throw new Error('Parent group not found');
       }
-      await createGroup(newGroupName, parentGroup.name);
+      await createGroup(newGroupName, parentGroup.id);
       await fetchGroups();
       setNewGroupName('');
       setShowAddSubgroupModal(null);
@@ -235,13 +232,13 @@ export default function TeamsManagementPage() {
       if (!group) {
         throw new Error('Group not found');
       }
-      await updateGroup(group.name, { name: editingGroupName.trim() });
+      await updateGroup(group.id, { name: editingGroupName.trim() });
       await fetchGroups();
       setEditingGroup(null);
       setEditingGroupName('');
       // Refresh teams if this group is selected
       if (selectedGroupId === groupId) {
-        await fetchTeamsForGroup(editingGroupName.trim());
+        await fetchTeamsForGroup(groupId);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update group');
@@ -262,7 +259,7 @@ export default function TeamsManagementPage() {
     setError(null);
     
     try {
-      await deleteGroup(group.name);
+      await deleteGroup(group.id);
       if (selectedGroupId === groupId) {
         setSelectedGroupId(null);
         setTeams([]);
@@ -281,17 +278,17 @@ export default function TeamsManagementPage() {
     setOperationLoading(true);
     setError(null); // Clear previous errors
     try {
-      await createTeam(newTeamName);
+      const newTeam = await createTeam(newTeamName);
       await fetchAllTeams(); // Refresh all teams list
       setNewTeamName('');
       setShowAddTeamModal(false);
       
       // If a leaf group is selected, automatically connect the team
-      if (selectedGroupId) {
+      if (selectedGroupId && newTeam) {
         const selectedGroup = findGroupById(selectedGroupId, groups);
         if (selectedGroup && isLeafGroup(selectedGroupId, groups)) {
-          await connectTeamToGroup(newTeamName.trim(), selectedGroup.name);
-          await fetchTeamsForGroup(selectedGroup.name);
+          await connectTeamToGroup(newTeam.team_key, selectedGroup.id);
+          await fetchTeamsForGroup(selectedGroup.id);
           await fetchAllTeams(); // Refresh again after connecting
         }
       }
@@ -315,14 +312,17 @@ export default function TeamsManagementPage() {
     setError(null);
     
     try {
-      await updateTeam(teamName, { teamName: editingTeamName.trim() });
+      // Find team by name to get its ID
+      const team = allTeams.find(t => t.team_name === teamName);
+      if (!team) {
+        throw new Error('Team not found');
+      }
+      await updateTeam(team.team_key, { teamName: editingTeamName.trim() });
       // Refresh teams for selected group
       if (selectedGroupId) {
-        const selectedGroup = findGroupById(selectedGroupId, groups);
-        if (selectedGroup) {
-          await fetchTeamsForGroup(selectedGroup.name);
-        }
+        await fetchTeamsForGroup(selectedGroupId);
       }
+      await fetchAllTeams(); // Refresh all teams
       setEditingTeam(null);
       setEditingTeamName('');
     } catch (err) {
@@ -338,14 +338,16 @@ export default function TeamsManagementPage() {
     setError(null);
     
     try {
-      await deleteTeam(teamName);
+      // Find team by name to get its ID
+      const team = allTeams.find(t => t.team_name === teamName);
+      if (!team) {
+        throw new Error('Team not found');
+      }
+      await deleteTeam(team.team_key);
       await fetchAllTeams(); // Refresh all teams
       // Refresh teams for selected group
       if (selectedGroupId) {
-        const selectedGroup = findGroupById(selectedGroupId, groups);
-        if (selectedGroup) {
-          await fetchTeamsForGroup(selectedGroup.name);
-        }
+        await fetchTeamsForGroup(selectedGroupId);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete team');
@@ -357,12 +359,14 @@ export default function TeamsManagementPage() {
   // Connection operations
   const handleConnectTeam = async (groupId: number, teamName: string) => {
     try {
-      const group = findGroupById(groupId, groups);
-      if (group) {
-        await connectTeamToGroup(teamName, group.name);
-        await fetchTeamsForGroup(group.name);
-        await fetchAllTeams(); // Refresh all teams to update group_names
+      // Find team by name to get its ID
+      const team = allTeams.find(t => t.team_name === teamName);
+      if (!team) {
+        throw new Error('Team not found');
       }
+      await connectTeamToGroup(team.team_key, groupId);
+      await fetchTeamsForGroup(groupId);
+      await fetchAllTeams(); // Refresh all teams
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect team');
     }
@@ -373,12 +377,14 @@ export default function TeamsManagementPage() {
     setError(null);
     
     try {
-      const group = findGroupById(groupId, groups);
-      if (group) {
-        await disconnectTeamFromGroup(teamName, group.name);
-        await fetchTeamsForGroup(group.name);
-        await fetchAllTeams(); // Refresh all teams to update group_names
+      // Find team by name to get its ID
+      const team = allTeams.find(t => t.team_name === teamName);
+      if (!team) {
+        throw new Error('Team not found');
       }
+      await disconnectTeamFromGroup(team.team_key);
+      await fetchTeamsForGroup(groupId);
+      await fetchAllTeams(); // Refresh all teams
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to disconnect team');
     } finally {
@@ -389,15 +395,13 @@ export default function TeamsManagementPage() {
   // Get available teams (teams not in selected group)
   const availableTeams = useMemo(() => {
     if (!selectedGroupId) return [];
-    const selectedGroup = findGroupById(selectedGroupId, groups);
-    if (!selectedGroup) return [];
     
     // Filter all teams to find those not in the selected group
     return allTeams.filter(team => {
-      // Team is available if it doesn't have this group in its group_names
-      return !team.group_names || !team.group_names.includes(selectedGroup.name);
+      // Team is available if its group_key is not the selected group ID (or is null)
+      return team.group_key !== selectedGroupId;
     });
-  }, [selectedGroupId, allTeams, groups]);
+  }, [selectedGroupId, allTeams]);
 
   // Filter available teams for connect modal search
   const [connectModalSearchQuery, setConnectModalSearchQuery] = useState('');
@@ -408,7 +412,7 @@ export default function TeamsManagementPage() {
     const query = connectModalSearchQuery.toLowerCase();
     return availableTeams.filter(team =>
       team.team_name.toLowerCase().includes(query) ||
-      (team.group_names && team.group_names.some(gn => gn.toLowerCase().includes(query)))
+      (team.group_name && team.group_name.toLowerCase().includes(query))
     );
   }, [availableTeams, connectModalSearchQuery]);
 
@@ -422,17 +426,23 @@ export default function TeamsManagementPage() {
     setError(null);
     
     try {
-      const group = findGroupById(groupId, groups);
-      if (!group) {
-        setOperationLoading(false);
-        return;
+      // Convert team names to team IDs
+      const teamIds = teamNames
+        .map(name => {
+          const team = allTeams.find(t => t.team_name === name);
+          return team?.team_key;
+        })
+        .filter((id): id is number => id !== undefined);
+
+      if (teamIds.length === 0) {
+        throw new Error('No valid teams found');
       }
 
       // Connect all selected teams in one bulk call
-      const result = await connectTeamsToGroup(teamNames, group.name);
+      await connectTeamsToGroup(teamIds, groupId);
 
       // Refresh data
-      await fetchTeamsForGroup(group.name);
+      await fetchTeamsForGroup(groupId);
       await fetchAllTeams();
       
       // Clear selection and close modal
@@ -1046,17 +1056,10 @@ export default function TeamsManagementPage() {
                             <span className="text-sm font-medium text-gray-900">👥 {team.team_name}</span>
                           </td>
                           <td className="px-3 py-2">
-                            {team.group_names && team.group_names.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {team.group_names.map((groupName, groupIdx) => (
-                                  <span
-                                    key={groupIdx}
-                                    className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs"
-                                  >
-                                    {groupName}
-                                  </span>
-                                ))}
-                              </div>
+                            {team.group_name ? (
+                              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
+                                {team.group_name}
+                              </span>
                             ) : (
                               <span className="text-xs text-gray-400 italic">Unassigned</span>
                             )}
@@ -1255,7 +1258,7 @@ function AllTeamsTab({
     const query = teamSearchQuery.toLowerCase();
     return allTeams.filter(team =>
       team.team_name.toLowerCase().includes(query) ||
-      (team.group_names && team.group_names.some(gn => gn.toLowerCase().includes(query)))
+      (team.group_name && team.group_name.toLowerCase().includes(query))
     );
   }, [allTeams, teamSearchQuery]);
 
@@ -1338,17 +1341,10 @@ function AllTeamsTab({
                     {team.number_of_team_members || 0}
                   </td>
                   <td className="px-2 py-1.5">
-                    {team.group_names && team.group_names.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {team.group_names.map((groupName, idx) => (
-                          <span
-                            key={idx}
-                            className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs"
-                          >
-                            {groupName}
-                          </span>
-                        ))}
-                      </div>
+                    {team.group_name ? (
+                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
+                        {team.group_name}
+                      </span>
                     ) : (
                       <span className="text-gray-400 italic">Unassigned</span>
                     )}

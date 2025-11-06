@@ -1,33 +1,35 @@
 /**
  * Teams and Groups service
  * 
- * API endpoints:
- * - getGroupsHierarchy() -> GET /api/v1/groups/hierarchy
- * - getTeamsByGroup(groupName) -> GET /api/v1/teams/by-group/{group_name}
- * - createGroup(name, parentGroupName?) -> POST /api/v1/groups
- * - updateGroup(groupName, newName?, parentGroupName?) -> PUT /api/v1/groups/{group_name}
- * - deleteGroup(groupName) -> DELETE /api/v1/groups/{group_name}
- * - createTeam(name) -> POST /api/v1/teams
- * - updateTeam(teamName, newName?, groupNames?) -> PUT /api/v1/teams/{team_name}
- * - deleteTeam(teamName) -> DELETE /api/v1/teams/{team_name}
- * - connectTeamToGroup(teamName, groupName) -> POST /api/v1/groups/{group_name}/teams (body: { "team_names": [...] })
- * - connectTeamsToGroup(teamNames[], groupName) -> POST /api/v1/groups/{group_name}/teams (body: { "team_names": [...] })
- * - disconnectTeamFromGroup(teamName, groupName) -> DELETE /api/v1/teams/{team_name}/groups (body: { "group_name": "..." })
+ * API endpoints (new structure):
+ * - getGroupsHierarchy() -> GET /api/v1/teams/groups
+ * - getTeamsByGroup(groupId) -> GET /api/v1/teams/groups/{groupId}/teams
+ * - createGroup(name, parentGroupId?) -> POST /api/v1/teams/groups
+ * - updateGroup(groupId, name?, parentGroupId?) -> PATCH /api/v1/teams/groups/{groupId}
+ * - deleteGroup(groupId) -> DELETE /api/v1/teams/groups/{groupId}
+ * - getAllTeams() -> GET /api/v1/teams
+ * - createTeam(name, groupId?, members?) -> POST /api/v1/teams
+ * - updateTeam(teamId, name?, members?, groupId?) -> PATCH /api/v1/teams/{teamId}
+ * - deleteTeam(teamId) -> DELETE /api/v1/teams/{teamId}
+ * - connectTeamsToGroup(teamIds[], groupId) -> PUT /api/v1/teams/batch-assign
+ * - disconnectTeamFromGroup(teamId) -> DELETE /api/v1/teams/{teamId}/group
  */
 
 import { API_CONFIG, buildBackendUrl } from './config';
 
-// Match the real API response structure
+// Match the new API response structure
 export interface Group {
-  id: number;
-  name: string;
-  parent_id: number | null;
+  id: number; // group_key from API
+  name: string; // group_name from API
+  parent_id: number | null; // parent_group_key from API
 }
 
 export interface Team {
-  team_name: string;
-  group_names: string[];
+  team_key: number; // ID from API
+  team_name: string; // Name from API
   number_of_team_members: number;
+  group_key: number | null; // Current group ID (null if unassigned)
+  group_name?: string; // Group name (from JOIN, optional)
 }
 
 export interface TeamsByGroupResponse {
@@ -35,14 +37,15 @@ export interface TeamsByGroupResponse {
   data: {
     teams: Team[];
     count: number;
-    group_name: string;
+    group_key: number;
   };
   message: string;
 }
 
 /**
  * Get all groups hierarchy (flat list with parent_id)
- * Endpoint: GET /api/v1/groups/hierarchy
+ * Endpoint: GET /api/v1/teams/groups
+ * Response: { success: true, data: { groups: [...], count: number }, message: string }
  */
 export async function getGroupsHierarchy(): Promise<Group[]> {
   const response = await fetch(buildBackendUrl(API_CONFIG.endpoints.groups.getHierarchy));
@@ -51,20 +54,22 @@ export async function getGroupsHierarchy(): Promise<Group[]> {
   }
   const data = await response.json();
   
-  // Handle different response formats:
-  // 1. Direct array: [ {...}, {...} ]
-  // 2. Wrapped in ApiResponse: { success: true, data: [...], message: "..." }
-  // 3. Empty response or other structure
-  
-  if (Array.isArray(data)) {
-    return data;
+  // New API format: { success: true, data: { groups: [...], count: number }, message: "..." }
+  if (data && data.success && data.data && Array.isArray(data.data.groups)) {
+    // Map API response to our interface: group_key -> id, group_name -> name, parent_group_key -> parent_id
+    return data.data.groups.map((g: any) => ({
+      id: g.id, // API returns 'id' (which is group_key)
+      name: g.name, // API returns 'name' (which is group_name)
+      parent_id: g.parent_id, // API returns 'parent_id' (which is parent_group_key)
+    }));
   }
   
-  if (data && typeof data === 'object' && Array.isArray(data.data)) {
-    return data.data;
+  // If no groups found, API returns empty array in data.groups
+  if (data && data.success && data.data && Array.isArray(data.data.groups)) {
+    return [];
   }
   
-  // If no groups found or unexpected format, return empty array
+  // Fallback for unexpected format
   return [];
 }
 
@@ -82,38 +87,23 @@ export async function getAllTeams(): Promise<Team[]> {
   
   const data = await response.json();
   
-  // Handle different response formats
-  if (Array.isArray(data)) {
-    return data;
+  // New API format: { success: true, data: { teams: [...], count: number }, message: "..." }
+  if (data && data.success && data.data && Array.isArray(data.data.teams)) {
+    return data.data.teams;
   }
   
-  if (data && typeof data === 'object') {
-    // Check for { success: true, data: { teams: [...] } } format (most common)
-    if (data.data && typeof data.data === 'object' && Array.isArray(data.data.teams)) {
-      return data.data.teams;
-    }
-    
-    // Check for data.teams (array of teams) - direct format
-    if (Array.isArray(data.teams)) {
-      return data.teams;
-    }
-    
-    // Check for data.data (array) - alternative format
-    if (Array.isArray(data.data)) {
-      return data.data;
-    }
-  }
-  
-  // If no teams found or unexpected format, return empty array
+  // If no teams found, API returns empty array in data.teams
   return [];
 }
 
 /**
- * Get teams for a specific group by group name
- * Endpoint: GET /api/v1/teams/by-group/{group_name}
+ * Get teams for a specific group by group ID
+ * Endpoint: GET /api/v1/teams/groups/{groupId}/teams
+ * Response: { success: true, data: { teams: [...], count: number, group_key: number }, message: string }
  */
-export async function getTeamsByGroup(groupName: string): Promise<TeamsByGroupResponse> {
-  const response = await fetch(buildBackendUrl(`${API_CONFIG.endpoints.teams.getByGroup}/${encodeURIComponent(groupName)}`));
+export async function getTeamsByGroup(groupId: number): Promise<TeamsByGroupResponse> {
+  const url = buildBackendUrl(`${API_CONFIG.endpoints.groups.getTeamsByGroup}/${groupId}/teams`);
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch teams for group: ${response.statusText}`);
   }
@@ -151,18 +141,18 @@ export function findGroupById(id: number, allGroups: Group[]): Group | undefined
 
 /**
  * Create a new group
- * Endpoint: POST /api/v1/groups
- * Body: { group_name: string, parent_group_name?: string }
- * Response: { success: true, data: { group: { group_name: string, parent_group_name: string | null } }, message: string }
+ * Endpoint: POST /api/v1/teams/groups
+ * Body: { group_name: string, parent_group_key?: number | null }
+ * Response: { success: true, data: { group: { group_key: number, group_name: string, parent_group_key: number | null } }, message: string }
  */
-export async function createGroup(name: string, parentGroupName?: string): Promise<Group> {
-  const body: { group_name: string; parent_group_name?: string | null } = { 
+export async function createGroup(name: string, parentGroupId?: number | null): Promise<Group> {
+  const body: { group_name: string; parent_group_key?: number | null } = { 
     group_name: name.trim() 
   };
-  if (parentGroupName) {
-    body.parent_group_name = parentGroupName;
+  if (parentGroupId !== undefined) {
+    body.parent_group_key = parentGroupId;
   } else {
-    body.parent_group_name = null;
+    body.parent_group_key = null;
   }
 
   const url = buildBackendUrl(API_CONFIG.endpoints.groups.create);
@@ -175,7 +165,6 @@ export async function createGroup(name: string, parentGroupName?: string): Promi
     },
     body: requestBody,
   });
-
 
   if (!response.ok) {
     // Handle 409 Conflict (duplicate group)
@@ -195,17 +184,13 @@ export async function createGroup(name: string, parentGroupName?: string): Promi
 
   const result = await response.json();
   
-  // Handle response structure: { success: true, data: { group: {...} }, message: "..." }
+  // New API format: { success: true, data: { group: { group_key, group_name, parent_group_key } }, message: "..." }
   if (result.success && result.data && result.data.group) {
     const groupData = result.data.group;
-    // Convert to Group interface format (with id and parent_id)
-    // Note: The API returns group_name and parent_group_name, but we need to fetch the full hierarchy
-    // to get the id. For now, we'll return a temporary structure.
-    // The component will refresh the groups list after creation.
     return {
-      id: 0, // Will be updated when groups are refreshed
+      id: groupData.group_key, // API returns group_key as the ID
       name: groupData.group_name,
-      parent_id: null, // Will be updated when groups are refreshed
+      parent_id: groupData.parent_group_key,
     };
   }
   
@@ -214,32 +199,31 @@ export async function createGroup(name: string, parentGroupName?: string): Promi
 
 /**
  * Update an existing group
- * Endpoint: PUT /api/v1/groups/{group_name}
- * Body: { group_name?: string, parent_group_name?: string }
- * Response: { success: true, data: { group: { group_name: string, parent_group_name: string | null } }, message: string }
+ * Endpoint: PATCH /api/v1/teams/groups/{groupId}
+ * Body: { group_name?: string, parent_group_key?: number | null }
+ * Response: { success: true, data: { group: { group_key: number, group_name: string, parent_group_key: number | null } }, message: string }
  */
 export async function updateGroup(
-  groupName: string,
-  updates: { name?: string; parentGroupName?: string }
+  groupId: number,
+  updates: { name?: string; parentGroupId?: number | null }
 ): Promise<Group> {
-  const body: { group_name?: string; parent_group_name?: string | null } = {};
+  const body: { group_name?: string; parent_group_key?: number | null } = {};
   if (updates.name) {
     body.group_name = updates.name.trim();
   }
-  if (updates.parentGroupName !== undefined) {
-    body.parent_group_name = updates.parentGroupName || null;
+  if (updates.parentGroupId !== undefined) {
+    body.parent_group_key = updates.parentGroupId;
   }
 
-  const url = buildBackendUrl(`${API_CONFIG.endpoints.groups.update}/${encodeURIComponent(groupName)}`);
+  const url = buildBackendUrl(`${API_CONFIG.endpoints.groups.update}/${groupId}`);
 
   const response = await fetch(url, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
   });
-
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -254,15 +238,13 @@ export async function updateGroup(
 
   const result = await response.json();
   
-  // Handle response structure: { success: true, data: { group: {...} }, message: "..." }
+  // New API format: { success: true, data: { group: { group_key, group_name, parent_group_key } }, message: "..." }
   if (result.success && result.data && result.data.group) {
     const groupData = result.data.group;
-    // Convert to Group interface format (with id and parent_id)
-    // The component will refresh the groups list after update to get the correct id.
     return {
-      id: 0, // Will be updated when groups are refreshed
+      id: groupData.group_key,
       name: groupData.group_name,
-      parent_id: null, // Will be updated when groups are refreshed
+      parent_id: groupData.parent_group_key,
     };
   }
   
@@ -270,11 +252,12 @@ export async function updateGroup(
 }
 
 /**
- * Delete a group permanently
- * Endpoint: DELETE /api/v1/groups/{group_name}
+ * Delete a group permanently (moves teams to null)
+ * Endpoint: DELETE /api/v1/teams/groups/{groupId}
+ * Response: { success: true, data: { id: number }, message: string }
  */
-export async function deleteGroup(groupName: string): Promise<void> {
-  const response = await fetch(buildBackendUrl(`${API_CONFIG.endpoints.groups.delete}/${encodeURIComponent(groupName)}`), {
+export async function deleteGroup(groupId: number): Promise<void> {
+  const response = await fetch(buildBackendUrl(`${API_CONFIG.endpoints.groups.delete}/${groupId}`), {
     method: 'DELETE',
   });
 
@@ -287,15 +270,26 @@ export async function deleteGroup(groupName: string): Promise<void> {
 /**
  * Create a new team
  * Endpoint: POST /api/v1/teams
- * Body: { team_name: string }
+ * Body: { team_name: string, number_of_team_members?: number, group_key?: number | null }
+ * Response: { success: true, data: { team: { team_key: number, team_name: string, number_of_team_members: number, group_key: number | null } }, message: string }
  */
-export async function createTeam(name: string): Promise<Team> {
+export async function createTeam(name: string, groupId?: number | null, members?: number): Promise<Team> {
+  const body: { team_name: string; number_of_team_members?: number; group_key?: number | null } = {
+    team_name: name.trim(),
+  };
+  if (members !== undefined) {
+    body.number_of_team_members = members;
+  }
+  if (groupId !== undefined) {
+    body.group_key = groupId;
+  }
+
   const response = await fetch(buildBackendUrl(API_CONFIG.endpoints.teams.create), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ team_name: name.trim() }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -309,29 +303,37 @@ export async function createTeam(name: string): Promise<Team> {
     throw new Error(error.message || `Failed to create team: ${response.statusText}`);
   }
 
-  const data = await response.json();
-  return data;
+  const result = await response.json();
+  // New API format: { success: true, data: { team: {...} }, message: "..." }
+  if (result.success && result.data && result.data.team) {
+    return result.data.team;
+  }
+  throw new Error('Unexpected response format from create team endpoint');
 }
 
 /**
  * Update an existing team
- * Endpoint: PUT /api/v1/teams/{team_name}
- * Body: { team_name?: string, group_names?: string[] }
+ * Endpoint: PATCH /api/v1/teams/{teamId}
+ * Body: { team_name?: string, number_of_team_members?: number, group_key?: number | null }
+ * Response: { success: true, data: { team: { team_key: number, team_name: string, number_of_team_members: number, group_key: number | null } }, message: string }
  */
 export async function updateTeam(
-  teamName: string,
-  updates: { teamName?: string; groupNames?: string[] }
+  teamId: number,
+  updates: { teamName?: string; number_of_team_members?: number; groupId?: number | null }
 ): Promise<Team> {
-  const body: { team_name?: string; group_names?: string[] } = {};
+  const body: { team_name?: string; number_of_team_members?: number; group_key?: number | null } = {};
   if (updates.teamName) {
     body.team_name = updates.teamName.trim();
   }
-  if (updates.groupNames !== undefined) {
-    body.group_names = updates.groupNames;
+  if (updates.number_of_team_members !== undefined) {
+    body.number_of_team_members = updates.number_of_team_members;
+  }
+  if (updates.groupId !== undefined) {
+    body.group_key = updates.groupId;
   }
 
-  const response = await fetch(buildBackendUrl(`${API_CONFIG.endpoints.teams.update}/${encodeURIComponent(teamName)}`), {
-    method: 'PUT',
+  const response = await fetch(buildBackendUrl(`${API_CONFIG.endpoints.teams.update}/${teamId}`), {
+    method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -343,16 +345,21 @@ export async function updateTeam(
     throw new Error(error.message || `Failed to update team: ${response.statusText}`);
   }
 
-  const data = await response.json();
-  return data;
+  const result = await response.json();
+  // New API format: { success: true, data: { team: {...} }, message: "..." }
+  if (result.success && result.data && result.data.team) {
+    return result.data.team;
+  }
+  throw new Error('Unexpected response format from update team endpoint');
 }
 
 /**
  * Delete a team permanently
- * Endpoint: DELETE /api/v1/teams/{team_name}
+ * Endpoint: DELETE /api/v1/teams/{teamId}
+ * Response: { success: true, data: { id: number }, message: string }
  */
-export async function deleteTeam(teamName: string): Promise<void> {
-  const response = await fetch(buildBackendUrl(`${API_CONFIG.endpoints.teams.delete}/${encodeURIComponent(teamName)}`), {
+export async function deleteTeam(teamId: number): Promise<void> {
+  const response = await fetch(buildBackendUrl(`${API_CONFIG.endpoints.teams.delete}/${teamId}`), {
     method: 'DELETE',
   });
 
@@ -363,93 +370,94 @@ export async function deleteTeam(teamName: string): Promise<void> {
 }
 
 /**
- * Add a team to a group (single team)
- * Endpoint: POST /api/v1/groups/{group_name}/teams
- * Body: { "team_names": ["Team 1"] }
+ * Add a team to a group (single team) - convenience wrapper
  */
-export async function connectTeamToGroup(teamName: string, groupName: string): Promise<void> {
+export async function connectTeamToGroup(teamId: number, groupId: number): Promise<void> {
   // Use the bulk function for single team
-  await connectTeamsToGroup([teamName], groupName);
+  await connectTeamsToGroup([teamId], groupId);
 }
 
 /**
- * Add multiple teams to a group in one call
- * Endpoint: POST /api/v1/groups/{group_name}/teams
- * Body: { "team_names": ["Team 1", "Team 2", ...] }
- * Response: { success: true, data: { group_name, teams_added, teams_skipped, total_requested, total_added, total_skipped }, message }
+ * Add multiple teams to a group in one call (batch assign)
+ * Endpoint: PUT /api/v1/teams/batch-assign
+ * Body: { group_id: number, team_ids: number[] }
+ * Response: { success: true, data: { updated_teams: number, group_id: number, team_ids: number[] }, message: string }
  */
-export async function connectTeamsToGroup(teamNames: string[], groupName: string): Promise<{
-  teams_added: string[];
-  teams_skipped: string[];
-  total_requested: number;
-  total_added: number;
-  total_skipped: number;
+export async function connectTeamsToGroup(teamIds: number[], groupId: number): Promise<{
+  updated_teams: number;
+  group_id: number;
+  team_ids: number[];
 }> {
-  // Build the URL: POST /api/v1/groups/{group_name}/teams
-  const encodedGroupName = encodeURIComponent(groupName);
-  const url = buildBackendUrl(`${API_CONFIG.endpoints.groups.getAll}/${encodedGroupName}/teams`);
+  const url = buildBackendUrl(API_CONFIG.endpoints.teamGroups.batchAssign);
   
-  // Request body with team_names array
-  const body = JSON.stringify({ team_names: teamNames });
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: body,
+  // Request body with group_id and team_ids array
+  const body = JSON.stringify({ 
+    group_id: groupId,
+    team_ids: teamIds 
   });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(error.message || `Failed to connect teams to group: ${response.statusText}`);
-  }
-
-  const result = await response.json();
   
-  if (result.success && result.data) {
-    return {
-      teams_added: result.data.teams_added || [],
-      teams_skipped: result.data.teams_skipped || [],
-      total_requested: result.data.total_requested || 0,
-      total_added: result.data.total_added || 0,
-      total_skipped: result.data.total_skipped || 0,
-    };
+  try {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: body,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(error.message || `Failed to connect teams to group: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    
+    if (result.success && result.data) {
+      return {
+        updated_teams: result.data.updated_teams || 0,
+        group_id: result.data.group_id || groupId,
+        team_ids: result.data.team_ids || teamIds,
+      };
+    }
+    
+    throw new Error('Unexpected response format from batch assign endpoint');
+  } catch (error) {
+    // Log network errors for debugging
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.error('Network error connecting teams to group:', error);
+      throw new Error('Network error: Failed to connect teams. Please check your connection.');
+    }
+    throw error;
   }
-  
-  // Fallback if response format is different
-  return {
-    teams_added: teamNames,
-    teams_skipped: [],
-    total_requested: teamNames.length,
-    total_added: teamNames.length,
-    total_skipped: 0,
-  };
 }
 
 /**
- * Remove a team from a group
- * Endpoint: DELETE /api/v1/teams/{team_name}/groups
- * Body: { "group_name": "Eng Group2" }
+ * Remove a team from a group (set group_key to NULL)
+ * Endpoint: DELETE /api/v1/teams/{teamId}/group
+ * Response: { success: true, data: { team: { team_key: number, team_name: string, number_of_team_members: number, group_key: null } }, message: string }
  */
-export async function disconnectTeamFromGroup(teamName: string, groupName: string): Promise<void> {
-  // Build the URL: DELETE /api/v1/teams/{team_name}/groups
-  const encodedTeamName = encodeURIComponent(teamName);
-  const url = buildBackendUrl(`${API_CONFIG.endpoints.teams.removeFromGroup}/${encodedTeamName}/groups`);
+export async function disconnectTeamFromGroup(teamId: number): Promise<void> {
+  // Build the URL: DELETE /api/v1/teams/{teamId}/group
+  const url = buildBackendUrl(`${API_CONFIG.endpoints.teamGroups.removeFromGroup}/${teamId}/group`);
   
-  // Request body with group_name
-  const body = JSON.stringify({ group_name: groupName });
-  
-  const response = await fetch(url, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: body,
-  });
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(error.message || `Failed to disconnect team from group: ${response.statusText}`);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(error.message || `Failed to disconnect team from group: ${response.statusText}`);
+    }
+  } catch (error) {
+    // Log network errors for debugging
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.error('Network error disconnecting team from group:', error);
+      throw new Error('Network error: Failed to disconnect team. Please check your connection.');
+    }
+    throw error;
   }
 }

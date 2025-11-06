@@ -30,14 +30,20 @@ export const API_CONFIG = {
       removeFromGroup: '/teams',
     },
     
-    // Groups endpoints
+    // Groups endpoints (new structure: /api/v1/teams/groups)
     groups: {
-      getAll: '/groups',
-      getHierarchy: '/groups/hierarchy',
-      getByName: '/groups',
-      create: '/groups',
-      update: '/groups',
-      delete: '/groups',
+      getAll: '/teams/groups',
+      getHierarchy: '/teams/groups',
+      getTeamsByGroup: '/teams/groups', // Will append /{groupId}/teams
+      create: '/teams/groups',
+      update: '/teams/groups', // Will append /{groupId}
+      delete: '/teams/groups', // Will append /{groupId}
+    },
+    
+    // Team-Group assignment endpoints
+    teamGroups: {
+      batchAssign: '/teams/batch-assign',
+      removeFromGroup: '/teams', // Will append /{teamId}/group
     },
     
     // PI endpoints
