@@ -160,6 +160,44 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction: 'TB' | 'LR
   return { nodes: layoutedNodes, edges };
 };
 
+// Calculate node positions using circular layout
+const getCircularLayout = (nodes: Node[], width = 1200, height = 800) => {
+  if (nodes.length === 0) return nodes;
+
+  const centerX = width / 2;
+  const centerY = height / 2;
+  // Calculate radius based on number of nodes (larger for more nodes)
+  const radius = Math.min(width, height) * 0.35;
+  const angleStep = (2 * Math.PI) / nodes.length;
+
+  // Position nodes evenly around a circle and make them smaller
+  const positionedNodes = nodes.map((node, index) => {
+    const angle = index * angleStep - Math.PI / 2; // Start from top
+    const x = centerX + radius * Math.cos(angle);
+    const y = centerY + radius * Math.sin(angle);
+    
+    // Make nodes smaller for circular layout
+    const smallerWidth = 100; // Smaller width
+    const smallerHeight = 50; // Smaller height
+    
+    return {
+      ...node,
+      position: {
+        x: x - smallerWidth / 2, // Offset by half node width
+        y: y - smallerHeight / 2, // Offset by half node height
+      },
+      style: {
+        ...node.style,
+        minWidth: `${smallerWidth}px`,
+        padding: '8px 12px', // Smaller padding
+        fontSize: '14px', // Slightly smaller font
+      },
+    };
+  });
+
+  return positionedNodes;
+};
+
 export default function TeamDependencyGraphPage() {
   const [outboundData, setOutboundData] = useState<EpicDependencyItem[]>([]);
   const [inboundData, setInboundData] = useState<EpicDependencyItem[]>([]);
@@ -168,6 +206,7 @@ export default function TeamDependencyGraphPage() {
   const [selectedPI, setSelectedPI] = useState<string>('');
   const [availablePIs, setAvailablePIs] = useState<string[]>([]);
   const [piInput, setPiInput] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'hierarchical' | 'circular'>('hierarchical');
 
   const apiService = new ApiService();
 
@@ -374,16 +413,31 @@ export default function TeamDependencyGraphPage() {
   );
 
   // Apply hierarchical layout using Dagre
-  const { nodes: layoutedNodes } = useMemo(() => {
+  const hierarchicalLayoutResult = useMemo(() => {
     if (initialNodesBeforeLayout.length === 0 || edgesForLayout.length === 0) {
       return { nodes: initialNodesBeforeLayout, edges: [] };
     }
     return getLayoutedElements(initialNodesBeforeLayout, edgesForLayout, 'TB');
   }, [initialNodesBeforeLayout, edgesForLayout]);
 
+  const hierarchicalNodes = hierarchicalLayoutResult.nodes;
+
+  // Apply circular layout
+  const circularNodes = useMemo(() => {
+    if (initialNodesBeforeLayout.length === 0) {
+      return initialNodesBeforeLayout;
+    }
+    return getCircularLayout(initialNodesBeforeLayout);
+  }, [initialNodesBeforeLayout]);
+
+  // Select nodes based on active tab
+  const layoutedNodes = useMemo(() => {
+    return activeTab === 'hierarchical' ? hierarchicalNodes : circularNodes;
+  }, [activeTab, hierarchicalNodes, circularNodes]);
+
   const [nodes, setNodes] = useState<Node[]>(layoutedNodes);
 
-  // Update nodes when layout changes
+  // Update nodes when layout changes or tab changes
   useEffect(() => {
     setNodes(layoutedNodes);
   }, [layoutedNodes]);
@@ -397,10 +451,15 @@ export default function TeamDependencyGraphPage() {
   );
 
   // Create edges from team dependencies
+  // Use bezier (curved) for circular layout, smoothstep for hierarchical
   const edges: Edge[] = useMemo(() => {
     if (teamDependencies.length === 0) {
       return [];
     }
+    
+    // Use 'default' (bezier curves) for circular layout to create smooth curved lines
+    // Use 'smoothstep' (stepped with rounded corners) for hierarchical layout
+    const edgeType = activeTab === 'circular' ? 'default' : 'smoothstep';
 
     const edgeMap = new Map<string, { forward: number; reverse?: number }>();
     const processedPairs = new Set<string>();
@@ -452,22 +511,22 @@ export default function TeamDependencyGraphPage() {
           source: fromTeam,
           target: toTeam,
           label: `${counts.forward} stories`,
-          type: 'smoothstep',
+          type: edgeType,
           animated: false,
           style: {
-            strokeWidth: Math.min(3 + counts.forward * 0.5, 8),
+            strokeWidth: activeTab === 'circular' ? 3 : Math.min(3 + counts.forward * 0.5, 8), // Fixed thickness for circular
             stroke: '#3b82f6',
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             color: '#3b82f6',
-            width: 20,
-            height: 20,
+            width: activeTab === 'circular' ? 15 : 20, // 25% smaller for circular (20 * 0.75 = 15)
+            height: activeTab === 'circular' ? 15 : 20,
           },
           labelStyle: {
             fill: '#1e40af',
             fontWeight: 700,
-            fontSize: '18px', // Bigger font for the number
+            fontSize: activeTab === 'circular' ? '14px' : '18px', // Smaller font for circular
             background: '#ffffff',
             padding: '4px 8px',
             borderRadius: '4px',
@@ -485,22 +544,22 @@ export default function TeamDependencyGraphPage() {
           source: toTeam,
           target: fromTeam,
           label: `${counts.reverse} stories`,
-          type: 'smoothstep',
+          type: edgeType,
           animated: false,
           style: {
-            strokeWidth: Math.min(3 + counts.reverse * 0.5, 8),
+            strokeWidth: activeTab === 'circular' ? 3 : Math.min(3 + counts.reverse * 0.5, 8), // Fixed thickness for circular
             stroke: '#ef4444',
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             color: '#ef4444',
-            width: 20,
-            height: 20,
+            width: activeTab === 'circular' ? 15 : 20, // 25% smaller for circular (20 * 0.75 = 15)
+            height: activeTab === 'circular' ? 15 : 20,
           },
           labelStyle: {
             fill: '#991b1b',
             fontWeight: 700,
-            fontSize: '18px', // Bigger font for the number
+            fontSize: activeTab === 'circular' ? '14px' : '18px', // Smaller font for circular
             background: '#ffffff',
             padding: '4px 8px',
             borderRadius: '4px',
@@ -518,22 +577,22 @@ export default function TeamDependencyGraphPage() {
           source: fromTeam,
           target: toTeam,
           label: `${counts.forward} stories`,
-          type: 'smoothstep',
+          type: edgeType,
           animated: false,
           style: {
-            strokeWidth: Math.min(3 + counts.forward * 0.5, 8),
+            strokeWidth: activeTab === 'circular' ? 3 : Math.min(3 + counts.forward * 0.5, 8), // Fixed thickness for circular
             stroke: '#3b82f6',
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             color: '#3b82f6',
-            width: 20,
-            height: 20,
+            width: activeTab === 'circular' ? 15 : 20, // 25% smaller for circular (20 * 0.75 = 15)
+            height: activeTab === 'circular' ? 15 : 20,
           },
           labelStyle: {
             fill: '#1e40af',
             fontWeight: 700,
-            fontSize: '18px', // Bigger font for the number
+            fontSize: activeTab === 'circular' ? '14px' : '18px', // Smaller font for circular
             background: '#ffffff',
             padding: '4px 8px',
             borderRadius: '4px',
@@ -548,7 +607,7 @@ export default function TeamDependencyGraphPage() {
     });
 
     return createdEdges;
-  }, [teamDependencies]);
+  }, [teamDependencies, activeTab]);
 
   // Debug information for display (moved after all dependencies are defined)
   const debugInfo = useMemo(() => {
@@ -854,6 +913,34 @@ export default function TeamDependencyGraphPage() {
                 numbers indicate story counts, and line thickness represents dependency
                 magnitude. Click and drag nodes to reposition them.
               </p>
+              
+              {/* Tabs */}
+              <div className="border-b border-gray-200 mb-4">
+                <nav className="-mb-px flex space-x-8">
+                  <button
+                    onClick={() => setActiveTab('hierarchical')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'hierarchical'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Hierarchical Layout
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('circular')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'circular'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Circular Layout
+                  </button>
+                </nav>
+              </div>
+
+              {/* Legend */}
               <div className="flex flex-wrap gap-4 text-xs">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-0.5 bg-blue-500"></div>
