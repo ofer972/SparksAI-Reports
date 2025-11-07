@@ -200,6 +200,7 @@ export default function BugsByPriorityPage() {
                       layout="vertical"
                       iconType="circle"
                       wrapperStyle={{ fontSize: '12px' }}
+                      formatter={(value) => <span style={{ color: '#000000' }}>{value}</span>}
                     />
                   </PieChart>
                 </ResponsiveContainer>

@@ -177,6 +177,7 @@ export default function BugsByTeamBarChart({ onError }: BugsByTeamBarChartProps)
               align="center"
               iconType="circle"
               wrapperStyle={{ fontSize: '12px' }}
+              formatter={(value) => <span style={{ color: '#000000' }}>{value}</span>}
             />
             {getAllPriorities.map((priority, index) => (
               <Bar
