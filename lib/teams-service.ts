@@ -48,11 +48,22 @@ export interface TeamsByGroupResponse {
  * Response: { success: true, data: { groups: [...], count: number }, message: string }
  */
 export async function getGroupsHierarchy(): Promise<Group[]> {
-  const response = await fetch(buildBackendUrl(API_CONFIG.endpoints.groups.getHierarchy));
-  if (!response.ok) {
-    throw new Error(`Failed to fetch groups hierarchy: ${response.statusText}`);
-  }
-  const data = await response.json();
+  const url = buildBackendUrl(API_CONFIG.endpoints.groups.getHierarchy);
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => response.statusText);
+      throw new Error(`Failed to fetch groups hierarchy: ${response.status} ${errorText}`);
+    }
+    
+    const data = await response.json();
   
   // New API format: { success: true, data: { groups: [...], count: number }, message: "..." }
   if (data && data.success && data.data && Array.isArray(data.data.groups)) {
@@ -71,6 +82,17 @@ export async function getGroupsHierarchy(): Promise<Group[]> {
   
   // Fallback for unexpected format
   return [];
+  } catch (error) {
+    // Log the error for debugging (especially on Railway)
+    console.error('Error fetching groups hierarchy:', error);
+    console.error('Request URL:', url);
+    
+    // Re-throw with more context
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Network error: Failed to connect to backend. Check INTERNAL_BACKEND_URL configuration.`);
+    }
+    throw error;
+  }
 }
 
 /**
