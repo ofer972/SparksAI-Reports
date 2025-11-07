@@ -10,6 +10,7 @@ import BugsByPriorityPage from '@/components/bugs-by-priority/BugsByPriorityPage
 import PIMetricsPage from '@/components/pi-metrics/PIMetricsPage';
 import EpicDependenciesPage from '@/components/epic-dependencies/EpicDependenciesPage';
 import TeamsManagementPage from '@/components/manage-teams/TeamsManagementPage';
+import TeamDependencyGraphPage from '@/components/team-dependency-graph/TeamDependencyGraphPage';
 
 export default function Home() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function Home() {
     { id: 'report-five', label: 'Open Bugs by Priority', icon: '🐛' },
     { id: 'report-six', label: 'PI Metrics', icon: '📋' },
     { id: 'report-seven', label: 'Epic Dependencies', icon: '🔗' },
+    { id: 'dependency-graph', label: 'Dependency Graph', icon: '🕸️' },
     { id: 'teams-management', label: 'Teams Management', icon: '👥' },
   ];
 
@@ -50,6 +52,8 @@ export default function Home() {
         return <PIMetricsPage />;
       case 'report-seven':
         return <EpicDependenciesPage />;
+      case 'dependency-graph':
+        return <TeamDependencyGraphPage />;
       case 'teams-management':
         return <TeamsManagementPage />;
       default:
