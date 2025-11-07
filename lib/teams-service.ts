@@ -2,11 +2,11 @@
  * Teams and Groups service
  * 
  * API endpoints (new structure):
- * - getGroupsHierarchy() -> GET /api/v1/teams/groups
- * - getTeamsByGroup(groupId) -> GET /api/v1/teams/groups/{groupId}/teams
- * - createGroup(name, parentGroupId?) -> POST /api/v1/teams/groups
- * - updateGroup(groupId, name?, parentGroupId?) -> PATCH /api/v1/teams/groups/{groupId}
- * - deleteGroup(groupId) -> DELETE /api/v1/teams/groups/{groupId}
+ * - getGroupsHierarchy() -> GET /api/v1/groups
+ * - getTeamsByGroup(groupId) -> GET /api/v1/groups/{groupId}/teams
+ * - createGroup(name, parentGroupId?) -> POST /api/v1/groups
+ * - updateGroup(groupId, name?, parentGroupId?) -> PATCH /api/v1/groups/{groupId}
+ * - deleteGroup(groupId) -> DELETE /api/v1/groups/{groupId}
  * - getAllTeams() -> GET /api/v1/teams
  * - createTeam(name, groupId?, members?) -> POST /api/v1/teams
  * - updateTeam(teamId, name?, members?, groupId?) -> PATCH /api/v1/teams/{teamId}
@@ -44,7 +44,7 @@ export interface TeamsByGroupResponse {
 
 /**
  * Get all groups hierarchy (flat list with parent_id)
- * Endpoint: GET /api/v1/teams/groups
+ * Endpoint: GET /api/v1/groups
  * Response: { success: true, data: { groups: [...], count: number }, message: string }
  */
 export async function getGroupsHierarchy(): Promise<Group[]> {
@@ -120,7 +120,7 @@ export async function getAllTeams(): Promise<Team[]> {
 
 /**
  * Get teams for a specific group by group ID
- * Endpoint: GET /api/v1/teams/groups/{groupId}/teams
+ * Endpoint: GET /api/v1/groups/{groupId}/teams
  * Response: { success: true, data: { teams: [...], count: number, group_key: number }, message: string }
  */
 export async function getTeamsByGroup(groupId: number): Promise<TeamsByGroupResponse> {
@@ -163,7 +163,7 @@ export function findGroupById(id: number, allGroups: Group[]): Group | undefined
 
 /**
  * Create a new group
- * Endpoint: POST /api/v1/teams/groups
+ * Endpoint: POST /api/v1/groups
  * Body: { group_name: string, parent_group_key?: number | null }
  * Response: { success: true, data: { group: { group_key: number, group_name: string, parent_group_key: number | null } }, message: string }
  */
@@ -221,7 +221,7 @@ export async function createGroup(name: string, parentGroupId?: number | null): 
 
 /**
  * Update an existing group
- * Endpoint: PATCH /api/v1/teams/groups/{groupId}
+ * Endpoint: PATCH /api/v1/groups/{groupId}
  * Body: { group_name?: string, parent_group_key?: number | null }
  * Response: { success: true, data: { group: { group_key: number, group_name: string, parent_group_key: number | null } }, message: string }
  */
@@ -275,7 +275,7 @@ export async function updateGroup(
 
 /**
  * Delete a group permanently (moves teams to null)
- * Endpoint: DELETE /api/v1/teams/groups/{groupId}
+ * Endpoint: DELETE /api/v1/groups/{groupId}
  * Response: { success: true, data: { id: number }, message: string }
  */
 export async function deleteGroup(groupId: number): Promise<void> {
