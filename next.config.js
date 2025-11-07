@@ -25,8 +25,6 @@ const nextConfig = {
         // Using string concatenation to ensure :path* is preserved correctly
         source: '/api/:path*',
         destination: `${cleanBackendUrl}/api/:path*`,
-        // Explicitly preserve the method (POST, PUT, DELETE, etc.)
-        // Next.js should do this by default, but being explicit
       },
     ];
   },
