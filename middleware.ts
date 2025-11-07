@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   // Only handle /api routes
   if (!request.nextUrl.pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
+
+  // Log the incoming request method for debugging (especially on Railway)
+  console.log(`[Middleware] ${request.method} ${request.nextUrl.pathname}`);
 
   // Get backend URL from environment variables
   const backendUrl = process.env.INTERNAL_BACKEND_URL || 
@@ -26,70 +29,81 @@ export function middleware(request: NextRequest) {
   // Get the path after /api
   const apiPath = request.nextUrl.pathname.replace(/^\/api/, '');
   
-  // Construct the backend URL
+  // Construct the backend URL with query string
   const backendApiUrl = `${cleanBackendUrl}/api${apiPath}${request.nextUrl.search}`;
 
   // Create headers for the backend request
   const headers = new Headers();
   
-  // Copy all request headers except host
+  // Copy all request headers except host and connection
   request.headers.forEach((value, key) => {
-    if (key.toLowerCase() !== 'host') {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey !== 'host' && lowerKey !== 'connection') {
       headers.set(key, value);
     }
   });
 
-  // Clone the request to read the body
-  const clonedRequest = request.clone();
-  
-  // Get request body for methods that have one
-  const hasBody = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
-  
-  // Proxy the request to the backend, preserving the HTTP method
-  return (hasBody 
-    ? clonedRequest.text().then(body => {
-        return fetch(backendApiUrl, {
-          method: request.method,
-          headers: headers,
-          body: body,
-        });
-      })
-    : fetch(backendApiUrl, {
-        method: request.method,
-        headers: headers,
-      })
-  )
-    .then(async (response) => {
-      // Get response body
-      const responseBody = await response.text();
-      
-      // Create response with same status and headers
-      const nextResponse = new NextResponse(responseBody, {
-        status: response.status,
-        statusText: response.statusText,
-      });
+  // Prepare fetch options with explicit method
+  const fetchOptions: RequestInit = {
+    method: request.method, // Explicitly preserve the HTTP method
+    headers: headers,
+    // Add cache control to prevent caching of non-GET requests
+    cache: request.method === 'GET' ? 'default' : 'no-store',
+  };
 
-      // Copy response headers
-      response.headers.forEach((value, key) => {
-        // Skip headers that Next.js manages
-        if (
-          key.toLowerCase() !== 'content-encoding' &&
-          key.toLowerCase() !== 'transfer-encoding' &&
-          key.toLowerCase() !== 'content-length'
-        ) {
-          nextResponse.headers.set(key, value);
-        }
-      });
+  // Handle request body for methods that support it
+  const methodsWithBody = ['POST', 'PUT', 'PATCH', 'DELETE'];
+  if (methodsWithBody.includes(request.method)) {
+    try {
+      // Read the request body
+      const body = await request.text();
+      if (body) {
+        fetchOptions.body = body;
+      }
+    } catch (error) {
+      console.error('Error reading request body:', error);
+      // Continue without body if there's an error
+    }
+  }
 
-      return nextResponse;
-    })
-    .catch((error) => {
-      console.error('Error proxying request to backend:', error);
-      return NextResponse.json(
-        { error: 'Failed to connect to backend' },
-        { status: 502 }
-      );
+  try {
+    // Log the proxied request for debugging
+    console.log(`[Middleware] Proxying ${fetchOptions.method} to ${backendApiUrl}`);
+    
+    // Proxy the request to the backend, preserving the HTTP method
+    const response = await fetch(backendApiUrl, fetchOptions);
+    
+    // Get response body
+    const responseBody = await response.text();
+    
+    // Create response with same status and headers
+    const nextResponse = new NextResponse(responseBody, {
+      status: response.status,
+      statusText: response.statusText,
     });
+
+    // Copy response headers (preserve Content-Type especially)
+    response.headers.forEach((value, key) => {
+      const lowerKey = key.toLowerCase();
+      // Skip headers that Next.js/Edge runtime manages
+      if (
+        lowerKey !== 'content-encoding' &&
+        lowerKey !== 'transfer-encoding' &&
+        lowerKey !== 'content-length' &&
+        lowerKey !== 'connection'
+      ) {
+        nextResponse.headers.set(key, value);
+      }
+    });
+
+    return nextResponse;
+  } catch (error) {
+    console.error('Error proxying request to backend:', error);
+    return NextResponse.json(
+      { error: 'Failed to connect to backend', details: String(error) },
+      { status: 502 }
+    );
+  }
 }
 
 // Configure which routes this middleware should run on
