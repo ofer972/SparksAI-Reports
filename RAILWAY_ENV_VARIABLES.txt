@@ -40,7 +40,5 @@ HOW IT WORKS:
 - On Railway: Uses INTERNAL_BACKEND_URL (internal domain)
 - On localhost: Uses NEXT_PUBLIC_BACKEND_URL or defaults to localhost:8000
 
-No authentication needed - all requests go directly to backend.
-
 ===========================================
 

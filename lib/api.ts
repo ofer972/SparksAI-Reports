@@ -37,12 +37,10 @@ import {
   PIWIPResponse,
   EpicDependencyItem
 } from './config';
-// No auth imports needed - simplified
 
 // Re-export types for convenience
 export type { IssuesTrendDataPoint, IssuesTrendResponse, PIPredictabilityResponse, PIPredictabilityData, ScopeChangesResponse, ScopeChangesDataPoint };
 
-// Simple fetch - no authentication needed
 const fetch = typeof window !== 'undefined' ? window.fetch : (globalThis as any).fetch;
 
 export interface BurndownDataPoint {

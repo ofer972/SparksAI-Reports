@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-// No auth imports needed
 import EpicsHierarchyPage from '@/components/hierarchy-table/EpicsHierarchyPage';
 import FlowStatusDurationPage from '@/components/flow-status-duration/FlowStatusDurationPage';
 import SprintPredictabilityPage from '@/components/sprint-predictability/SprintPredictabilityPage';
@@ -17,7 +16,6 @@ export default function Home() {
   const [authChecked, setAuthChecked] = useState(false);
   
   useEffect(() => {
-    // No authentication needed - set as checked immediately
     setAuthChecked(true);
   }, []);
 
