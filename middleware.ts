@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// DISABLED: Using standard rewrites in next.config.js instead
+// This middleware is kept for reference in case it's needed in the future
 export async function middleware(request: NextRequest) {
+  // Return early - not using middleware, using rewrites instead
+  return NextResponse.next();
+  
+  /* DISABLED CODE BELOW - kept for reference
   // Only handle /api routes
   if (!request.nextUrl.pathname.startsWith('/api/')) {
     return NextResponse.next();
@@ -104,9 +110,11 @@ export async function middleware(request: NextRequest) {
       { status: 502 }
     );
   }
+  */
 }
 
 // Configure which routes this middleware should run on
+// DISABLED - not using middleware
 export const config = {
   matcher: '/api/:path*',
 };
