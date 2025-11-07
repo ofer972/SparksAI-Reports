@@ -51,12 +51,7 @@ export async function getGroupsHierarchy(): Promise<Group[]> {
   const url = buildBackendUrl(API_CONFIG.endpoints.groups.getHierarchy);
   
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await fetch(url);
     
     if (!response.ok) {
       const errorText = await response.text().catch(() => response.statusText);
