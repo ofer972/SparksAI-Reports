@@ -104,19 +104,35 @@ export default function TeamsManagementPage() {
   }, []);
 
   // Fetch teams when group is selected (only when user manually selects)
+  // Only fetch if we're on the 'group-teams' tab (not when switching tabs)
   useEffect(() => {
-    if (selectedGroupId) {
-      fetchTeamsForGroup(selectedGroupId);
+    // Skip if we just switched tabs - let the activeTab effect handle clearing first
+    if (activeTab === 'group-teams') {
+      if (selectedGroupId && selectedGroupId !== -1) {
+        // Only fetch if we have a valid group selected
+        fetchTeamsForGroup(selectedGroupId);
+      } else {
+        // Ensure teams are cleared when no group is selected or "All Groups" is selected
+        setTeams([]);
+      }
     } else {
-      // Clear teams when no group is selected
+      // If we're not on group-teams tab, ensure teams are cleared
       setTeams([]);
     }
-  }, [selectedGroupId]);
+  }, [selectedGroupId, activeTab]);
 
   // Fetch all teams when user switches to "All Teams" tab
   useEffect(() => {
-    if (activeTab === 'all-teams' && allTeams.length === 0) {
-      fetchAllTeams();
+    if (activeTab === 'all-teams') {
+      if (allTeams.length === 0) {
+        fetchAllTeams();
+      }
+      // Clear teams state when switching to "All Teams" tab to prevent confusion
+      setTeams([]);
+    } else if (activeTab === 'group-teams') {
+      // Always clear teams when switching to "Teams in Group" tab
+      // This must happen synchronously before any other effects run
+      setTeams([]);
     }
   }, [activeTab]);
 
@@ -658,7 +674,12 @@ export default function TeamsManagementPage() {
     );
   }
 
-  const selectedGroup = selectedGroupId ? findGroupById(selectedGroupId, groups) ?? null : null;
+  // Treat "All Groups" (id: -1) the same as null - no group selected
+  const selectedGroup = selectedGroupId && selectedGroupId !== -1 ? findGroupById(selectedGroupId, groups) ?? null : null;
+  
+  // Ensure teams are cleared if no valid group is selected (defensive check)
+  // This handles edge cases where teams state might not be cleared properly
+  const displayTeams = selectedGroup ? teams : [];
 
   return (
     <div className="space-y-3">
@@ -797,7 +818,7 @@ export default function TeamsManagementPage() {
               <GroupTeamsTab
                 selectedGroup={selectedGroup}
                 groups={groups}
-                teams={teams}
+                teams={displayTeams}
                 unassignedTeams={unassignedTeams}
                 isLeafGroup={isLeafGroup}
                 editingTeam={editingTeam}
@@ -1192,33 +1213,8 @@ function GroupTeamsTab({
       </div>
 
       {!selectedGroup ? (
-        <div className="space-y-2">
-          <div className="text-xs text-gray-500 text-center py-3">
-            Select a group to see teams
-          </div>
-          {unassignedTeams.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold text-gray-700 mb-1.5">
-                Unassigned ({unassignedTeams.length})
-              </h4>
-              <div className="space-y-1">
-                {unassignedTeams.map(team => (
-                  <TeamItem
-                    key={team.team_name}
-                    team={team}
-                    editingTeam={editingTeam}
-                    editingTeamName={editingTeamName}
-                    operationLoading={operationLoading}
-                    onStartEdit={onStartEdit}
-                    onSave={onSave}
-                    onCancelEdit={onCancelEdit}
-                    onEditChange={onEditChange}
-                    onDelete={onDelete}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+        <div className="text-xs text-gray-500 text-center py-3">
+          Select a group to see teams
         </div>
       ) : teams.length === 0 ? (
         <div className="text-center py-4 text-xs text-gray-500">
