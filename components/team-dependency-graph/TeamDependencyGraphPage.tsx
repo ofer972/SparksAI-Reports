@@ -15,8 +15,10 @@ import ReactFlow, {
   EdgeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import dagre from 'dagre';
 import { ApiService } from '@/lib/api';
 import { EpicDependencyItem } from '@/lib/config';
+
 
 // Interface for team dependency
 interface TeamDependency {
@@ -114,18 +116,48 @@ const transformApiDataToTeamDependencies = (
   return dependencies;
 };
 
-// Calculate node positions in a circular layout
-const calculateNodePositions = (teams: string[], radius = 300) => {
-  const centerX = 400;
-  const centerY = 400;
-  const angleStep = (2 * Math.PI) / teams.length;
-
-  return teams.map((team, index) => {
-    const angle = index * angleStep - Math.PI / 2; // Start from top
-    const x = centerX + radius * Math.cos(angle);
-    const y = centerY + radius * Math.sin(angle);
-    return { team, x, y };
+// Calculate node positions using hierarchical Dagre layout
+const getLayoutedElements = (nodes: Node[], edges: Edge[], direction: 'TB' | 'LR' = 'TB') => {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  dagreGraph.setGraph({ 
+    rankdir: direction,
+    nodesep: 100, // Horizontal spacing between nodes
+    ranksep: 150, // Vertical spacing between ranks
+    marginx: 50,
+    marginy: 50,
   });
+
+  // Set node dimensions (approximate based on label length)
+  // Account for bigger font size (16px) and connection count in label
+  nodes.forEach((node) => {
+    const labelLength = (node.data?.label as string)?.length || 10;
+    const nodeWidth = Math.max(150, labelLength * 10 + 40); // Bigger width for bigger font
+    const nodeHeight = 70; // Bigger height for bigger font
+    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+  });
+
+  // Add edges to dagre graph
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  // Run the layout algorithm
+  dagre.layout(dagreGraph);
+
+  // Update node positions with calculated layout
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - (nodeWithPosition.width || 120) / 2,
+        y: nodeWithPosition.y - (nodeWithPosition.height || 60) / 2,
+      },
+    };
+  });
+
+  return { nodes: layoutedNodes, edges };
 };
 
 export default function TeamDependencyGraphPage() {
@@ -222,43 +254,139 @@ export default function TeamDependencyGraphPage() {
     ).filter(Boolean);
   }, [teamDependencies]);
 
-  // Calculate node positions in a circular layout
-  const nodePositions = useMemo(() => {
-    return calculateNodePositions(uniqueTeams);
-  }, [uniqueTeams]);
+  // Calculate connection counts for each team using inbound dependency data only
+  // Use volume_of_work_relied_upon from inbound data (grouped by assignee_team)
+  const teamConnectionCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    
+    // Initialize all teams with 0
+    uniqueTeams.forEach(team => counts.set(team, 0));
+    
+    // Sum up volume_of_work_relied_upon from inbound data (grouped by assignee_team)
+    inboundData.forEach((item: any) => {
+      const team = item.assignee_team;
+      if (team) {
+        const currentCount = counts.get(team) || 0;
+        const volume = item.volume_of_work_relied_upon || 0;
+        counts.set(team, currentCount + volume);
+      }
+    });
+    
+    return counts;
+  }, [inboundData, uniqueTeams]);
 
-  // Initialize nodes with state
-  const initialNodes: Node[] = useMemo(
+  // Get top 3 teams with most connections
+  const top3Teams = useMemo(() => {
+    const sorted = Array.from(teamConnectionCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([team]) => team);
+    return new Set(sorted);
+  }, [teamConnectionCounts]);
+
+  // Create edges from team dependencies (needed for layout calculation)
+  const edgesForLayout: Edge[] = useMemo(() => {
+    if (teamDependencies.length === 0) {
+      return [];
+    }
+
+    const edgeMap = new Map<string, { forward: number; reverse?: number }>();
+    const processedPairs = new Set<string>();
+
+    // First pass: collect all dependencies and detect bidirectional
+    teamDependencies.forEach((dep) => {
+      const pairKey = [dep.fromTeam, dep.toTeam].sort().join('|||');
+      
+      if (processedPairs.has(pairKey)) {
+        return;
+      }
+
+      const key = `${dep.fromTeam}->${dep.toTeam}`;
+      
+      // Check if reverse dependency exists
+      const reverse = teamDependencies.find(
+        (d) => d.fromTeam === dep.toTeam && d.toTeam === dep.fromTeam
+      );
+
+      if (reverse) {
+        edgeMap.set(key, {
+          forward: dep.storyCount,
+          reverse: reverse.storyCount,
+        });
+        processedPairs.add(pairKey);
+      } else {
+        edgeMap.set(key, { forward: dep.storyCount });
+        processedPairs.add(pairKey);
+      }
+    });
+
+    // Create edges for layout (we'll create the styled edges later)
+    const layoutEdges: Edge[] = [];
+    edgeMap.forEach((counts, key) => {
+      const parts = key.split('->');
+      if (parts.length !== 2) return;
+      const fromTeam = parts[0];
+      const toTeam = parts[1];
+      
+      // For layout, we only need one edge per direction
+      layoutEdges.push({
+        id: `layout-edge-${fromTeam}-${toTeam}`,
+        source: fromTeam,
+        target: toTeam,
+      });
+    });
+
+    return layoutEdges;
+  }, [teamDependencies]);
+
+  // Create initial nodes (before layout)
+  const initialNodesBeforeLayout: Node[] = useMemo(
     () =>
-      nodePositions.map((pos, index) => ({
-        id: pos.team,
-        type: 'default',
-        position: { x: pos.x, y: pos.y },
-        draggable: true,
-        selectable: true,
-        data: {
-          label: pos.team,
-        },
-        style: {
-          background: '#ffffff',
-          border: '2px solid #3b82f6',
-          borderRadius: '8px',
-          padding: '10px 15px',
-          minWidth: '120px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          cursor: 'grab',
-          pointerEvents: 'auto',
-        },
-      })),
-    [nodePositions]
+      uniqueTeams.map((team) => {
+        const connectionCount = teamConnectionCounts.get(team) || 0;
+        const isTop3 = top3Teams.has(team);
+        const label = `${team} (${connectionCount})`;
+        
+        return {
+          id: team,
+          type: 'default',
+          position: { x: 0, y: 0 }, // Will be calculated by dagre
+          draggable: true,
+          selectable: true,
+          data: {
+            label: label,
+          },
+          style: {
+            background: isTop3 ? '#fef3c7' : '#ffffff', // Yellow for top 3, white for others
+            border: isTop3 ? '2px solid #f59e0b' : '2px solid #3b82f6',
+            borderRadius: '8px',
+            padding: '10px 15px',
+            minWidth: '120px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            cursor: 'grab',
+            pointerEvents: 'auto',
+            fontSize: '16px', // Bigger font
+            fontWeight: '600',
+          },
+        };
+      }),
+    [uniqueTeams, teamConnectionCounts, top3Teams]
   );
 
-  const [nodes, setNodes] = useState<Node[]>(initialNodes);
+  // Apply hierarchical layout using Dagre
+  const { nodes: layoutedNodes } = useMemo(() => {
+    if (initialNodesBeforeLayout.length === 0 || edgesForLayout.length === 0) {
+      return { nodes: initialNodesBeforeLayout, edges: [] };
+    }
+    return getLayoutedElements(initialNodesBeforeLayout, edgesForLayout, 'TB');
+  }, [initialNodesBeforeLayout, edgesForLayout]);
 
-  // Update nodes when teams change
+  const [nodes, setNodes] = useState<Node[]>(layoutedNodes);
+
+  // Update nodes when layout changes
   useEffect(() => {
-    setNodes(initialNodes);
-  }, [initialNodes]);
+    setNodes(layoutedNodes);
+  }, [layoutedNodes]);
 
   // Handle node changes (for dragging)
   const onNodesChange = useCallback(
@@ -338,10 +466,10 @@ export default function TeamDependencyGraphPage() {
           },
           labelStyle: {
             fill: '#1e40af',
-            fontWeight: 600,
-            fontSize: '12px',
+            fontWeight: 700,
+            fontSize: '18px', // Bigger font for the number
             background: '#ffffff',
-            padding: '2px 6px',
+            padding: '4px 8px',
             borderRadius: '4px',
             border: '1px solid #3b82f6',
           },
@@ -371,10 +499,10 @@ export default function TeamDependencyGraphPage() {
           },
           labelStyle: {
             fill: '#991b1b',
-            fontWeight: 600,
-            fontSize: '12px',
+            fontWeight: 700,
+            fontSize: '18px', // Bigger font for the number
             background: '#ffffff',
-            padding: '2px 6px',
+            padding: '4px 8px',
             borderRadius: '4px',
             border: '1px solid #ef4444',
           },
@@ -404,10 +532,10 @@ export default function TeamDependencyGraphPage() {
           },
           labelStyle: {
             fill: '#1e40af',
-            fontWeight: 600,
-            fontSize: '12px',
+            fontWeight: 700,
+            fontSize: '18px', // Bigger font for the number
             background: '#ffffff',
-            padding: '2px 6px',
+            padding: '4px 8px',
             borderRadius: '4px',
             border: '1px solid #3b82f6',
           },
