@@ -744,6 +744,60 @@ export class ApiService {
     
     throw new Error(result.message || 'Failed to fetch epic inbound dependency load');
   }
+
+  // AI Chat API
+  async chatWithInsight(request: {
+    conversation_id?: string | null;
+    question: string;
+    user_id: string;
+    selected_team: string;
+    selected_pi?: string;
+    chat_type: string;
+    recommendation_id?: string;
+    insights_id?: string;
+    prompt_name?: string;
+  }): Promise<{
+    success: boolean;
+    data: {
+      response: string;
+      input_parameters: {
+        conversation_id: string;
+        question: string;
+        user_id: string;
+        selected_team: string;
+        selected_pi?: string;
+        chat_type: string;
+        recommendation_id?: string;
+        insights_id?: string;
+        prompt_name?: string;
+      };
+    };
+    message: string;
+  }> {
+    const response = await fetch(buildBackendUrl('/ai-chat'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(`Failed to send chat message: ${errorMessage}`);
+    }
+
+    return response.json();
+  }
 }
 
 // Legacy class for backward compatibility

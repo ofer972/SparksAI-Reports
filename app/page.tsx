@@ -11,6 +11,7 @@ import PIMetricsPage from '@/components/pi-metrics/PIMetricsPage';
 import EpicDependenciesPage from '@/components/epic-dependencies/EpicDependenciesPage';
 import TeamsManagementPage from '@/components/manage-teams/TeamsManagementPage';
 import TeamDependencyGraphPage from '@/components/team-dependency-graph/TeamDependencyGraphPage';
+import DirectAISQLChatPage from '@/components/direct-ai-sql-chat/DirectAISQLChatPage';
 
 export default function Home() {
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function Home() {
     { id: 'report-seven', label: 'Epic Dependencies', icon: '🔗' },
     { id: 'dependency-graph', label: 'Dependency Graph', icon: '🕸️' },
     { id: 'teams-management', label: 'Teams Management', icon: '👥' },
+    { id: 'direct-ai-sql-chat', label: 'Direct AI SQL Chat', icon: '💬' },
   ];
 
   const renderMainContent = () => {
@@ -56,6 +58,8 @@ export default function Home() {
         return <TeamDependencyGraphPage />;
       case 'teams-management':
         return <TeamsManagementPage />;
+      case 'direct-ai-sql-chat':
+        return <DirectAISQLChatPage />;
       default:
         return (
           <div className="bg-white rounded-lg shadow-sm p-6 text-center">
