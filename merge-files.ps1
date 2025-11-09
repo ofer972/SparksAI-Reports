@@ -7,7 +7,7 @@ if (Test-Path $output) {
     Remove-Item $output
 }
 
-Write-Host "Merging relevant source files into $output..."
+Write-Host "Merging relevant source files to $output..."
 Write-Host ""
 
 # Get all files recursively
