@@ -621,7 +621,7 @@ export default function TeamDependencyGraphPage() {
     
     // Show all teams in outbound data
     if (outboundData.length > 0) {
-      const outboundTeams = [...new Set(outboundData.map((item: any) => item.owned_team).filter(Boolean))];
+      const outboundTeams = Array.from(new Set(outboundData.map((item: any) => item.owned_team).filter(Boolean)));
       info.push(`Outbound teams (${outboundTeams.length}): ${outboundTeams.join(', ')}`);
       
       // Check for CAN-IDPS-Test specifically
@@ -641,7 +641,7 @@ export default function TeamDependencyGraphPage() {
     
     // Show all teams in inbound data
     if (inboundData.length > 0) {
-      const inboundTeams = [...new Set(inboundData.map((item: any) => item.assignee_team).filter(Boolean))];
+      const inboundTeams = Array.from(new Set(inboundData.map((item: any) => item.assignee_team).filter(Boolean)));
       info.push(`Inbound teams (${inboundTeams.length}): ${inboundTeams.join(', ')}`);
       
       // Check for CAN-IDPS-Test specifically
@@ -660,7 +660,7 @@ export default function TeamDependencyGraphPage() {
     }
     
     // Show all dependencies
-    const allTeams = [...new Set([...teamDependencies.map(d => d.fromTeam), ...teamDependencies.map(d => d.toTeam)])];
+    const allTeams = Array.from(new Set([...teamDependencies.map(d => d.fromTeam), ...teamDependencies.map(d => d.toTeam)]));
     info.push(`=== Transformed Dependencies ===`);
     info.push(`All teams in graph (${allTeams.length}): ${allTeams.join(', ')}`);
     info.push('');
