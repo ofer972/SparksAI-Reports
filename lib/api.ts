@@ -35,7 +35,9 @@ import {
   PIStatusForTodayResponse,
   PIStatusForTodayItem,
   PIWIPResponse,
-  EpicDependencyItem
+  EpicDependencyItem,
+  ActiveSprintSummaryItem,
+  ActiveSprintSummaryResponse
 } from './config';
 
 // Re-export types for convenience
@@ -627,6 +629,35 @@ export class ApiService {
     
     if (result.success && result.data && result.data.sprint_predictability) {
       return result.data.sprint_predictability;
+    }
+    
+    return [];
+  }
+
+  // Active Sprint Summary by Team API
+  async getActiveSprintSummaryByTeam(
+    teamName?: string,
+    isGroup: boolean = false
+  ): Promise<ActiveSprintSummaryItem[]> {
+    const params = new URLSearchParams();
+    
+    if (teamName) {
+      params.append('team_name', teamName);
+    }
+    
+    params.append('isGroup', isGroup.toString());
+    
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.sprints.activeSprintSummaryByTeam)}?${params}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch active sprint summary: ${response.statusText}`);
+    }
+
+    const result: ActiveSprintSummaryResponse = await response.json();
+    
+    if (result.success && result.data && result.data.summaries) {
+      return result.data.summaries;
     }
     
     return [];

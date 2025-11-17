@@ -124,6 +124,7 @@ export const API_CONFIG = {
     // Sprints endpoints
     sprints: {
       sprintPredictability: '/sprints/sprint-predictability',
+      activeSprintSummaryByTeam: '/sprints/active-sprint-summary-by-team',
     },
     
   },
@@ -504,6 +505,33 @@ export interface IssuesByTeamResponse {
   data: {
     issues_by_team: IssuesByTeam[];
     count: number;
+  };
+  message: string;
+}
+
+export interface ActiveSprintSummaryItem {
+  sprint_id: number;
+  sprint_name: string;
+  team_name: string;
+  start_date: string;
+  end_date: string;
+  overall_progress_pct: number;
+  issues_at_start: number;
+  issues_added: number;
+  issues_done: number;
+  flagged_issues: number;
+  issues_remaining: number;
+  sprint_goal: string;
+  [key: string]: any; // Allow for additional fields
+}
+
+export interface ActiveSprintSummaryResponse {
+  success: boolean;
+  data: {
+    summaries: ActiveSprintSummaryItem[];
+    count: number;
+    group_name?: string;
+    teams_in_group?: string[];
   };
   message: string;
 }

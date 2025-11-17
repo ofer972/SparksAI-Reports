@@ -12,6 +12,7 @@ import EpicDependenciesPage from '@/components/epic-dependencies/EpicDependencie
 import TeamsManagementPage from '@/components/manage-teams/TeamsManagementPage';
 import TeamDependencyGraphPage from '@/components/team-dependency-graph/TeamDependencyGraphPage';
 import DirectAISQLChatPage from '@/components/direct-ai-sql-chat/DirectAISQLChatPage';
+import ActiveSprintReportPage from '@/components/active-sprint-report/ActiveSprintReportPage';
 
 export default function Home() {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function Home() {
     { id: 'report-five', label: 'Open Bugs by Priority', icon: '🐛' },
     { id: 'report-six', label: 'PI Metrics', icon: '📋' },
     { id: 'report-seven', label: 'Epic Dependencies', icon: '🔗' },
+    { id: 'active-sprint-report', label: 'Active Sprint Summary by team', icon: '🏃' },
     { id: 'dependency-graph', label: 'Dependency Graph', icon: '🕸️' },
     { id: 'teams-management', label: 'Teams Management', icon: '👥' },
     { id: 'direct-ai-sql-chat', label: 'Direct AI SQL Chat', icon: '💬' },
@@ -54,6 +56,8 @@ export default function Home() {
         return <PIMetricsPage />;
       case 'report-seven':
         return <EpicDependenciesPage />;
+      case 'active-sprint-report':
+        return <ActiveSprintReportPage />;
       case 'dependency-graph':
         return <TeamDependencyGraphPage />;
       case 'teams-management':
