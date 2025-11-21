@@ -90,6 +90,11 @@ export const API_CONFIG = {
       createPiJobForTeam: '/agent-jobs/create-pi-job-for-team',
     },
     
+    // Insight Types endpoints
+    insightTypes: {
+      getAll: '/insight-types',
+    },
+    
     // Transcript Upload endpoints
     transcripts: {
       uploadTeam: '/transcripts/upload-team',
@@ -125,6 +130,11 @@ export const API_CONFIG = {
     sprints: {
       sprintPredictability: '/sprints/sprint-predictability',
       activeSprintSummaryByTeam: '/sprints/active-sprint-summary-by-team',
+    },
+    
+    // Insight Types endpoints
+    insightTypes: {
+      getAll: '/insight-types',
     },
     
   },
@@ -536,8 +546,25 @@ export interface ActiveSprintSummaryResponse {
   message: string;
 }
 
+// Insight Types and Agent Jobs
+export interface InsightType {
+  id: string | number;
+  name: string;
+  requirePI: boolean;
+  requireTeam: boolean;
+  active?: boolean;
+  [key: string]: any; // Allow for additional fields from API
+}
 
+export interface InsightTypesResponse {
+  insight_types: InsightType[];
+  count: number;
+}
 
-
+export interface CreateJobResponse {
+  success: boolean;
+  data?: any;
+  message: string;
+}
 
 

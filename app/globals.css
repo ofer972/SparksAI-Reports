@@ -10,6 +10,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 
 
 

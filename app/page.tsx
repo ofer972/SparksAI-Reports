@@ -13,6 +13,7 @@ import TeamsManagementPage from '@/components/manage-teams/TeamsManagementPage';
 import TeamDependencyGraphPage from '@/components/team-dependency-graph/TeamDependencyGraphPage';
 import DirectAISQLChatPage from '@/components/direct-ai-sql-chat/DirectAISQLChatPage';
 import ActiveSprintReportPage from '@/components/active-sprint-report/ActiveSprintReportPage';
+import CreateAgentJobsPage from '@/components/create-agent-jobs/CreateAgentJobsPage';
 
 export default function Home() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function Home() {
     { id: 'dependency-graph', label: 'Dependency Graph', icon: '🕸️' },
     { id: 'teams-management', label: 'Teams Management', icon: '👥' },
     { id: 'direct-ai-sql-chat', label: 'Direct AI SQL Chat', icon: '💬' },
+    { id: 'create-agent-jobs', label: 'Create Agent Jobs', icon: '⚙️' },
   ];
 
   const renderMainContent = () => {
@@ -64,6 +66,8 @@ export default function Home() {
         return <TeamsManagementPage />;
       case 'direct-ai-sql-chat':
         return <DirectAISQLChatPage />;
+      case 'create-agent-jobs':
+        return <CreateAgentJobsPage />;
       default:
         return (
           <div className="bg-white rounded-lg shadow-sm p-6 text-center">

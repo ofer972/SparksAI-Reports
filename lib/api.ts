@@ -37,7 +37,10 @@ import {
   PIWIPResponse,
   EpicDependencyItem,
   ActiveSprintSummaryItem,
-  ActiveSprintSummaryResponse
+  ActiveSprintSummaryResponse,
+  InsightTypesResponse,
+  InsightType,
+  CreateJobResponse
 } from './config';
 
 // Re-export types for convenience
@@ -827,6 +830,126 @@ export class ApiService {
       throw new Error(`Failed to send chat message: ${errorMessage}`);
     }
 
+    return response.json();
+  }
+
+  // Insight Types API
+  async getActiveInsightTypes(): Promise<InsightTypesResponse> {
+    const response = await fetch(
+      `${buildBackendUrl(API_CONFIG.endpoints.insightTypes.getAll)}?active=true`
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch insight types: ${errorText || response.statusText}`);
+    }
+
+    const result: ApiResponse<InsightTypesResponse> = await response.json();
+    return result.data;
+  }
+
+  // Create Agent Job APIs
+  // When both PI and Team are required
+  async createPIJobForTeam(
+    jobType: string,
+    pi: string,
+    teamName: string
+  ): Promise<CreateJobResponse> {
+    const response = await fetch(
+      buildBackendUrl('/agent-jobs/create-pi-job-for-team'),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_type: jobType,
+          pi: pi,
+          team_name: teamName
+        })
+      }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+    
+    return response.json();
+  }
+
+  // When only Team is required
+  async createTeamJob(
+    jobType: string,
+    teamName: string
+  ): Promise<CreateJobResponse> {
+    const response = await fetch(
+      buildBackendUrl('/agent-jobs/create-team-job'),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_type: jobType,
+          team_name: teamName
+        })
+      }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+    
+    return response.json();
+  }
+
+  // When only PI is required
+  async createPIJob(
+    jobType: string,
+    pi: string
+  ): Promise<CreateJobResponse> {
+    const response = await fetch(
+      buildBackendUrl('/agent-jobs/create-pi-job'),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_type: jobType,
+          pi: pi
+        })
+      }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+    
     return response.json();
   }
 }
