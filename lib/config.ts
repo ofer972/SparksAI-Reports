@@ -132,11 +132,6 @@ export const API_CONFIG = {
       activeSprintSummaryByTeam: '/sprints/active-sprint-summary-by-team',
     },
     
-    // Insight Types endpoints
-    insightTypes: {
-      getAll: '/insight-types',
-    },
-    
   },
 } as const;
 
