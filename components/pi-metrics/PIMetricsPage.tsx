@@ -10,9 +10,11 @@ interface MetricCardProps {
   loading?: boolean;
   icon?: React.ReactNode;
   color?: 'red' | 'yellow' | 'green';
+  remainingEpics?: number;
+  idealRemaining?: number;
 }
 
-function MetricCard({ title, tooltip, value, loading, icon, color }: MetricCardProps) {
+function MetricCard({ title, tooltip, value, loading, icon, color, remainingEpics, idealRemaining }: MetricCardProps) {
   // Get color class based on status
   const getColorClass = () => {
     if (color === 'red') return 'text-red-600';
@@ -22,7 +24,7 @@ function MetricCard({ title, tooltip, value, loading, icon, color }: MetricCardP
   };
 
   return (
-    <div className="relative group flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 p-4 flex flex-col items-center justify-center min-h-[150px] min-w-[150px] max-w-[180px]">
+    <div className="relative group flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 p-4 flex flex-col items-center justify-center min-h-[135px] min-w-[150px] max-w-[180px]">
       {/* Tooltip - appears on top */}
       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity z-50">
         <div className="relative">
@@ -36,29 +38,35 @@ function MetricCard({ title, tooltip, value, loading, icon, color }: MetricCardP
         </div>
       </div>
 
-      {/* Icon at top */}
-      {icon && (
-        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xl">
+      {/* Icon at top or Epic Closure info */}
+      {remainingEpics !== undefined || idealRemaining !== undefined ? (
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs text-gray-700 text-center">
+          <div className="whitespace-nowrap">
+            Remaining: {remainingEpics !== undefined ? remainingEpics : '-'}, Ideal: {idealRemaining !== undefined ? idealRemaining : '-'}
+          </div>
+        </div>
+      ) : icon ? (
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-lg">
           {icon}
         </div>
-      )}
+      ) : null}
 
       {/* Metric Value Area */}
-      <div className="flex-1 flex items-center justify-center pt-2">
+      <div className="flex-1 flex items-center justify-center pt-6">
         {loading ? (
           <div className="animate-pulse">
             <div className="h-8 w-16 bg-gray-200 rounded"></div>
           </div>
         ) : (
-          <div className={`text-3xl font-bold ${getColorClass()}`}>
+          <div className={`text-xl font-bold ${getColorClass()}`}>
             {value !== undefined ? value : '-'}
           </div>
         )}
       </div>
 
       {/* Title at bottom */}
-      <div className="mt-auto pt-3 border-t border-gray-100 w-full">
-        <h3 className="text-xs font-semibold text-gray-700 text-center">{title}</h3>
+      <div className="mt-auto pt-2 w-full">
+        <h3 className="text-[0.65rem] font-semibold text-gray-700 text-center">{title}</h3>
       </div>
     </div>
   );
@@ -79,9 +87,9 @@ export default function PIMetricsPage() {
     totalEpics?: number;
     percentage?: number;
   }>({});
-  const [selectedPI, setSelectedPI] = useState<string>('Q32025');
+  const [selectedPI, setSelectedPI] = useState<string>('Q42025');
   const [availablePIs, setAvailablePIs] = useState<string[]>([]);
-  const [piInput, setPiInput] = useState<string>('Q32025');
+  const [piInput, setPiInput] = useState<string>('Q42025');
 
   // Fetch available PIs
   useEffect(() => {
@@ -309,6 +317,8 @@ export default function PIMetricsPage() {
               loading={loading && index === 0}
               icon={metric.icon}
               color={metric.color}
+              remainingEpics={index === 0 ? epicClosureData.remainingEpics : undefined}
+              idealRemaining={index === 0 ? epicClosureData.idealRemaining : undefined}
             />
           ))}
         </div>
