@@ -53,7 +53,6 @@ export const API_CONFIG = {
       getBurndown: '/pis/burndown',
       getScopeChanges: '/pis/scope-changes',
       getPIStatusForToday: '/pis/get-pi-status-for-today',
-      getWIP: '/pis/WIP',
     },
     
     // Burndown endpoints
@@ -261,16 +260,6 @@ export interface PIStatusForTodayResponse {
   data: PIStatusForTodayItem[];
   count: number;
   message: string;
-}
-
-export interface PIWIPResponse {
-  count_in_progress: number;
-  count_in_progress_status: 'red' | 'yellow' | 'green';
-  total_epics: number;
-  in_progress_percentage: number;
-  pi: string;
-  team: string;
-  project: string | null;
 }
 
 export interface EpicDependencyItem {

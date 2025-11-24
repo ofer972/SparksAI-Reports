@@ -12,9 +12,11 @@ interface MetricCardProps {
   color?: 'red' | 'yellow' | 'green';
   remainingEpics?: number;
   idealRemaining?: number;
+  totalEpics?: number;
+  inProgressPercentage?: number;
 }
 
-function MetricCard({ title, tooltip, value, loading, icon, color, remainingEpics, idealRemaining }: MetricCardProps) {
+function MetricCard({ title, tooltip, value, loading, icon, color, remainingEpics, idealRemaining, totalEpics, inProgressPercentage }: MetricCardProps) {
   // Get color class based on status
   const getColorClass = () => {
     if (color === 'red') return 'text-red-600';
@@ -38,11 +40,17 @@ function MetricCard({ title, tooltip, value, loading, icon, color, remainingEpic
         </div>
       </div>
 
-      {/* Icon at top or Epic Closure info */}
+      {/* Icon at top or Epic Closure info or In Progress Epics info */}
       {remainingEpics !== undefined || idealRemaining !== undefined ? (
         <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs text-gray-700 text-center">
           <div className="whitespace-nowrap">
             Remaining: {remainingEpics !== undefined ? remainingEpics : '-'}, Ideal: {idealRemaining !== undefined ? idealRemaining : '-'}
+          </div>
+        </div>
+      ) : totalEpics !== undefined || inProgressPercentage !== undefined ? (
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs text-gray-700 text-center">
+          <div className="whitespace-nowrap">
+            Total Epics: {totalEpics !== undefined ? totalEpics : '-'}, WIP%: {inProgressPercentage !== undefined ? Math.round(inProgressPercentage) : '-'}
           </div>
         </div>
       ) : icon ? (
@@ -80,12 +88,11 @@ export default function PIMetricsPage() {
     totalIssue?: number;
     remainingEpics?: number;
     idealRemaining?: number;
-  }>({});
-  const [wipData, setWipData] = useState<{
-    value?: number;
-    color?: 'red' | 'yellow' | 'green';
+    // WIP fields from the same endpoint
     totalEpics?: number;
-    percentage?: number;
+    inProgressPercentage?: number;
+    inProgressCount?: number;
+    inProgressStatus?: 'red' | 'yellow' | 'green';
   }>({});
   const [selectedPI, setSelectedPI] = useState<string>('Q42025');
   const [availablePIs, setAvailablePIs] = useState<string[]>([]);
@@ -108,70 +115,85 @@ export default function PIMetricsPage() {
     fetchPIs();
   }, []);
 
-  // Fetch Epic Closure data for the first metric
+  // Fetch PI status data (includes both Epic Closure and WIP data)
   useEffect(() => {
     if (!selectedPI) return;
     
     const apiService = new ApiService();
-    const fetchEpicClosure = async () => {
+    const fetchPIStatus = async () => {
       setLoading(true);
       try {
         const response = await apiService.getPIStatusForToday(selectedPI);
+        console.log('Full Response:', response);
         // Use the first item from the array, or aggregate if needed
         if (response.data && response.data.length > 0) {
           const firstItem = response.data[0];
+          console.log('First Item (all fields):', firstItem);
+          console.log('All field names:', Object.keys(firstItem));
+          console.log('Field values:', {
+            'progress_delta_pct_status': firstItem['progress_delta_pct_status'],
+            'progress_delta_pct': firstItem['progress_delta_pct'],
+            'planned_epics': firstItem['planned_epics'],
+            'added_epics': firstItem['added_epics'],
+            'removed_epics': firstItem['removed_epics'],
+            'in_progress_percentage': firstItem['in_progress_percentage'],
+            'count_in_progress_status': firstItem['count_in_progress_status'],
+            'total_issues': firstItem['total_issues'],
+            'remaining_epics': firstItem['remaining_epics'],
+            'ideal_remaining': firstItem['ideal_remaining'],
+          });
           // Extract fields from response
           const statusValue = firstItem['progress_delta_pct_status'];
           const progressValue = firstItem['progress_delta_pct'];
+          const plannedEpics = firstItem['planned_epics'] || 0;
+          const addedEpics = firstItem['added_epics'] || 0;
+          const removedEpics = firstItem['removed_epics'] || 0;
+          // Calculate total epics: planned + added - removed
+          const totalEpics = plannedEpics + addedEpics - removedEpics;
+          const inProgressPct = firstItem['in_progress_percentage'];
+          // Calculate in-progress count from percentage and total epics
+          const inProgressCount = totalEpics > 0 && inProgressPct !== undefined 
+            ? Math.round(totalEpics * (inProgressPct / 100))
+            : undefined;
+          
+          console.log('Calculated values:', {
+            totalEpics,
+            inProgressPct,
+            inProgressCount,
+            inProgressStatus: firstItem['count_in_progress_status'],
+          });
+          
           setEpicClosureData({
             value: progressValue,
             color: statusValue,
             totalIssue: firstItem['total_issues'],
             remainingEpics: firstItem['remaining_epics'],
             idealRemaining: firstItem['ideal_remaining'],
+            // WIP fields from the same endpoint
+            totalEpics: totalEpics,
+            inProgressPercentage: inProgressPct,
+            inProgressCount: inProgressCount,
+            inProgressStatus: firstItem['count_in_progress_status'],
           });
         } else {
           setEpicClosureData({});
         }
       } catch (err) {
-        console.error('Failed to fetch Epic Closure data:', err);
+        console.error('Failed to fetch PI status data:', err);
         setEpicClosureData({});
       } finally {
         setLoading(false);
       }
     };
 
-    fetchEpicClosure();
-  }, [selectedPI]);
-
-  // Fetch WIP data for the last metric
-  useEffect(() => {
-    if (!selectedPI) return;
-    
-    const apiService = new ApiService();
-    const fetchWIP = async () => {
-      try {
-        const data = await apiService.getPIWIP(selectedPI);
-        setWipData({
-          value: data.count_in_progress,
-          color: data.count_in_progress_status,
-          totalEpics: data.total_epics,
-          percentage: data.in_progress_percentage,
-        });
-      } catch (err) {
-        console.error('Failed to fetch WIP data:', err);
-        setWipData({});
-      }
-    };
-
-    fetchWIP();
+    fetchPIStatus();
   }, [selectedPI]);
 
   const metrics = [
     {
       title: 'Epic Closure',
-      tooltip: epicClosureData.totalIssue !== undefined && epicClosureData.remainingEpics !== undefined && epicClosureData.idealRemaining !== undefined
-        ? `Closure gap from the ideal. Total issues: ${epicClosureData.totalIssue}. Remaining epics: ${epicClosureData.remainingEpics}. Ideal remaining: ${epicClosureData.idealRemaining}`
+      tooltip: epicClosureData.totalEpics !== undefined && epicClosureData.remainingEpics !== undefined && epicClosureData.idealRemaining !== undefined
+        ? `Closure gap from the ideal. Total Epics: ${epicClosureData.totalEpics}. Remaining epics: ${epicClosureData.remainingEpics}. Ideal remaining: ${epicClosureData.idealRemaining}`
         : 'Closure gap from the ideal.',
       value: epicClosureData.value !== undefined && epicClosureData.value !== null 
         ? `${epicClosureData.value.toFixed(1)}%` 
@@ -199,13 +221,13 @@ export default function PIMetricsPage() {
     },
     {
       title: 'In Progress Epics',
-      tooltip: wipData.totalEpics !== undefined && wipData.value !== undefined && wipData.percentage !== undefined
-        ? `Total epics: ${wipData.totalEpics}. Currently in progress: ${wipData.value} (${wipData.percentage.toFixed(1)}%)`
+      tooltip: epicClosureData.totalEpics !== undefined && epicClosureData.inProgressCount !== undefined && epicClosureData.inProgressPercentage !== undefined
+        ? `Total epics: ${epicClosureData.totalEpics}. Currently in progress: ${epicClosureData.inProgressCount} (${epicClosureData.inProgressPercentage.toFixed(1)}%)`
         : 'Number of epics that are in progress in the PI',
-      value: wipData.value !== undefined && wipData.value !== null 
-        ? wipData.value 
+      value: epicClosureData.inProgressCount !== undefined && epicClosureData.inProgressCount !== null 
+        ? epicClosureData.inProgressCount 
         : undefined,
-      color: wipData.color,
+      color: epicClosureData.inProgressStatus,
       icon: '🚀',
     },
   ];
@@ -214,41 +236,69 @@ export default function PIMetricsPage() {
     const piName = piInput.trim();
     if (piName) {
       setSelectedPI(piName);
-      // Manually trigger fetch for Epic Closure and WIP
+      // Manually trigger fetch for PI status (includes both Epic Closure and WIP data)
       setLoading(true);
       try {
         const apiService = new ApiService();
         
-        // Fetch Epic Closure
+        // Fetch PI status data
         const response = await apiService.getPIStatusForToday(piName);
+        console.log('Full Response (handleApplyFilter):', response);
         if (response.data && response.data.length > 0) {
           const firstItem = response.data[0];
+          console.log('First Item (all fields - handleApplyFilter):', firstItem);
+          console.log('All field names (handleApplyFilter):', Object.keys(firstItem));
+          console.log('Field values (handleApplyFilter):', {
+            'progress_delta_pct_status': firstItem['progress_delta_pct_status'],
+            'progress_delta_pct': firstItem['progress_delta_pct'],
+            'planned_epics': firstItem['planned_epics'],
+            'added_epics': firstItem['added_epics'],
+            'removed_epics': firstItem['removed_epics'],
+            'in_progress_percentage': firstItem['in_progress_percentage'],
+            'count_in_progress_status': firstItem['count_in_progress_status'],
+            'total_issues': firstItem['total_issues'],
+            'remaining_epics': firstItem['remaining_epics'],
+            'ideal_remaining': firstItem['ideal_remaining'],
+          });
           // Extract fields from response
           const statusValue = firstItem['progress_delta_pct_status'];
           const progressValue = firstItem['progress_delta_pct'];
+          const plannedEpics = firstItem['planned_epics'] || 0;
+          const addedEpics = firstItem['added_epics'] || 0;
+          const removedEpics = firstItem['removed_epics'] || 0;
+          // Calculate total epics: planned + added - removed
+          const totalEpics = plannedEpics + addedEpics - removedEpics;
+          const inProgressPct = firstItem['in_progress_percentage'];
+          // Calculate in-progress count from percentage and total epics
+          const inProgressCount = totalEpics > 0 && inProgressPct !== undefined 
+            ? Math.round(totalEpics * (inProgressPct / 100))
+            : undefined;
+          
+          console.log('Calculated values (handleApplyFilter):', {
+            totalEpics,
+            inProgressPct,
+            inProgressCount,
+            inProgressStatus: firstItem['count_in_progress_status'],
+          });
+          
           setEpicClosureData({
             value: progressValue,
             color: statusValue,
             totalIssue: firstItem['total_issues'],
             remainingEpics: firstItem['remaining_epics'],
             idealRemaining: firstItem['ideal_remaining'],
+            // WIP fields from the same endpoint
+            totalEpics: totalEpics,
+            inProgressPercentage: inProgressPct,
+            inProgressCount: inProgressCount,
+            inProgressStatus: firstItem['count_in_progress_status'],
           });
         } else {
           setEpicClosureData({});
         }
-
-        // Fetch WIP
-        const wipResponse = await apiService.getPIWIP(piName);
-        setWipData({
-          value: wipResponse.count_in_progress,
-          color: wipResponse.count_in_progress_status,
-          totalEpics: wipResponse.total_epics,
-          percentage: wipResponse.in_progress_percentage,
-        });
       } catch (err) {
         console.error('Failed to fetch data:', err);
         setEpicClosureData({});
-        setWipData({});
       } finally {
         setLoading(false);
       }
@@ -319,6 +369,8 @@ export default function PIMetricsPage() {
               color={metric.color}
               remainingEpics={index === 0 ? epicClosureData.remainingEpics : undefined}
               idealRemaining={index === 0 ? epicClosureData.idealRemaining : undefined}
+              totalEpics={index === 4 ? epicClosureData.totalEpics : undefined}
+              inProgressPercentage={index === 4 ? epicClosureData.inProgressPercentage : undefined}
             />
           ))}
         </div>

@@ -34,7 +34,6 @@ import {
   IssuesByTeamResponse,
   PIStatusForTodayResponse,
   PIStatusForTodayItem,
-  PIWIPResponse,
   EpicDependencyItem,
   ActiveSprintSummaryItem,
   ActiveSprintSummaryResponse,
@@ -151,27 +150,6 @@ export class ApiService {
     }
     
     return { data: [], count: 0, message: '' };
-  }
-
-  // PI WIP (Work In Progress) API
-  async getPIWIP(piName: string): Promise<PIWIPResponse> {
-    const params = new URLSearchParams({
-      pi: piName,
-    });
-
-    const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.pis.getWIP)}?${params}`);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch PI WIP: ${response.statusText}`);
-    }
-
-    const result: ApiResponse<PIWIPResponse> = await response.json();
-    
-    if (result.success && result.data) {
-      return result.data;
-    }
-    
-    throw new Error('Failed to fetch PI WIP: Invalid response format');
   }
 
   // Burndown API
