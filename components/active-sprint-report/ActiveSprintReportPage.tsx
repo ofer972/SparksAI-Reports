@@ -134,20 +134,24 @@ export default function ActiveSprintReportPage() {
             return <div className="text-sm text-gray-500 text-center">-</div>;
           }
           if (isOverallProgressPct) {
-            // Round to integer and apply color coding:
-            // > 70%: Green, 50-70%: Yellow, < 50%: Red
-            const roundedVal = Math.round(val);
+            // Display with one decimal place, use original value for color coding:
+            // < 50%: Red bold, 50 to < 70%: Yellow bold, >= 70%: Green bold
+            const formattedVal = val.toFixed(1);
             let colorClass = 'text-gray-700';
-            if (roundedVal > 70) {
-              colorClass = 'text-green-600 font-bold';
-            } else if (roundedVal >= 50) {
+            // Use original value (val) for color determination
+            if (val < 50) {
+              // Below 50: Red bold
+              colorClass = 'text-red-600 font-bold';
+            } else if (val >= 50 && val < 70) {
+              // 50 to less than 70: Yellow bold (includes 69.6, 69.9, etc.)
               colorClass = 'text-yellow-600 font-bold';
             } else {
-              colorClass = 'text-red-600 font-bold';
+              // 70 or above: Green bold
+              colorClass = 'text-green-600 font-bold';
             }
             return (
               <div className={`text-sm text-center font-medium ${colorClass}`}>
-                {roundedVal}%
+                {formattedVal}%
               </div>
             );
           }
