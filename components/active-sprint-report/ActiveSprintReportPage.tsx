@@ -63,12 +63,12 @@ export default function ActiveSprintReportPage() {
       return [];
     }
 
-    // Get all unique keys from the data (excluding team_name and sprint_name which we'll handle specially)
+    // Get all unique keys from the data (excluding team_name, sprint_name, and sprint_id which we'll handle specially)
     const firstItem = data[0];
     const allKeys = Object.keys(firstItem);
     
-    // Filter out team_name and sprint_name as they'll be first columns
-    const otherKeys = allKeys.filter(key => key !== 'team_name' && key !== 'sprint_name');
+    // Filter out team_name, sprint_name, and sprint_id as they'll be first columns or excluded
+    const otherKeys = allKeys.filter(key => key !== 'team_name' && key !== 'sprint_name' && key !== 'sprint_id');
     
     // Build columns: team_name first, sprint_name second, then all other fields
     const builtColumns: ColumnDef<ActiveSprintSummaryItem>[] = [
@@ -134,11 +134,19 @@ export default function ActiveSprintReportPage() {
             return <div className="text-sm text-gray-500 text-center">-</div>;
           }
           if (isOverallProgressPct) {
-            // Round to integer and apply green bold styling if above 75
+            // Round to integer and apply color coding:
+            // > 70%: Green, 50-70%: Yellow, < 50%: Red
             const roundedVal = Math.round(val);
-            const isHighProgress = roundedVal > 75;
+            let colorClass = 'text-gray-700';
+            if (roundedVal > 70) {
+              colorClass = 'text-green-600 font-bold';
+            } else if (roundedVal >= 50) {
+              colorClass = 'text-yellow-600 font-bold';
+            } else {
+              colorClass = 'text-red-600 font-bold';
+            }
             return (
-              <div className={`text-sm text-center font-medium ${isHighProgress ? 'text-green-600 font-bold' : 'text-gray-700'}`}>
+              <div className={`text-sm text-center font-medium ${colorClass}`}>
                 {roundedVal}%
               </div>
             );
