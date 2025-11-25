@@ -22,8 +22,6 @@ import {
   SprintPredictabilityResponse,
   ReleasePredictabilityItem,
   ReleasePredictabilityResponse,
-  IssueByPriority,
-  IssuesByPriorityResponse,
   IssuesByTeam,
   IssuesByTeamResponse,
   PIStatusForTodayResponse,
