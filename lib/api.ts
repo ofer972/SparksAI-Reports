@@ -18,12 +18,6 @@ import {
   ScopeChangesDataPoint,
   HierarchyItem,
   EpicsHierarchyResponse,
-  StatusDuration,
-  IssueStatusDurationResponse,
-  IssueStatusDurationWithKeysResponse,
-  IssueStatusDurationIssue,
-  IssueStatusDurationPerMonthResponse,
-  MonthlyStatusDurationDataset,
   SprintPredictabilityItem,
   SprintPredictabilityResponse,
   ReleasePredictabilityItem,
@@ -475,125 +469,6 @@ export class ApiService {
     return [];
   }
 
-  // Issue Status Duration API
-  async getIssueStatusDuration(
-    issueType?: string,
-    teamName?: string,
-    period?: number
-  ): Promise<StatusDuration[]> {
-    const params = new URLSearchParams();
-    
-    if (issueType) {
-      params.append('issue_type', issueType);
-    }
-    
-    if (teamName) {
-      params.append('team_name', teamName);
-    }
-    
-    if (period) {
-      params.append('months', period.toString());
-    }
-
-    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issueStatusDuration)}?${params}`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch issue status duration: ${response.statusText}`);
-    }
-
-    const result: IssueStatusDurationResponse = await response.json();
-    
-    if (result.success && result.data && result.data.status_durations) {
-      return result.data.status_durations;
-    }
-    
-    return [];
-  }
-
-  // Issue Status Duration with Issue Keys API
-  async getIssueStatusDurationWithKeys(
-    statusName: string,
-    issueType?: string,
-    teamName?: string,
-    period?: number,
-    yearMonth?: string
-  ): Promise<IssueStatusDurationIssue[]> {
-    const params = new URLSearchParams();
-    params.append('status_name', statusName);
-    
-    if (issueType) {
-      params.append('issue_type', issueType);
-    }
-    
-    if (teamName) {
-      params.append('team_name', teamName);
-    }
-    
-    if (period) {
-      params.append('months', period.toString());
-    }
-    
-    // Add year_month parameter for monthly view
-    if (yearMonth) {
-      params.append('year_month', yearMonth);
-    }
-
-    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issueStatusDurationWithKeys)}?${params}`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch issue status duration with keys: ${response.statusText}`);
-    }
-
-    const result: IssueStatusDurationWithKeysResponse = await response.json();
-    
-    if (result.success && result.data && result.data.issues) {
-      return result.data.issues;
-    }
-    
-    return [];
-  }
-
-  // Issue Status Duration Per Month API
-  async getIssueStatusDurationPerMonth(
-    issueType?: string,
-    teamName?: string,
-    period?: number
-  ): Promise<{ labels: string[]; datasets: MonthlyStatusDurationDataset[] }> {
-    const params = new URLSearchParams();
-    
-    if (issueType) {
-      params.append('issue_type', issueType);
-    }
-    
-    if (teamName) {
-      params.append('team_name', teamName);
-    }
-    
-    if (period) {
-      params.append('months', period.toString());
-    }
-
-    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issueStatusDurationPerMonth)}?${params}`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch issue status duration per month: ${response.statusText}`);
-    }
-
-    const result: IssueStatusDurationPerMonthResponse = await response.json();
-    
-    if (result.success && result.data) {
-      return {
-        labels: result.data.labels,
-        datasets: result.data.datasets,
-      };
-    }
-    
-    return { labels: [], datasets: [] };
-  }
-
   // Sprint Predictability API
   async getSprintPredictability(months: number = 3): Promise<SprintPredictabilityItem[]> {
     const params = new URLSearchParams();
@@ -660,31 +535,6 @@ export class ApiService {
     
     if (result.success && result.data && result.data.release_predictability) {
       return result.data.release_predictability;
-    }
-    
-    return [];
-  }
-
-  // Issues Grouped by Priority API
-  async getIssuesByPriority(issueType: string, teamName?: string): Promise<IssueByPriority[]> {
-    const params = new URLSearchParams();
-    params.append('issue_type', issueType);
-    
-    if (teamName) {
-      params.append('team_name', teamName);
-    }
-
-    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issuesGroupedByPriority)}?${params}`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch issues by priority: ${response.statusText}`);
-    }
-
-    const result: IssuesByPriorityResponse = await response.json();
-    
-    if (result.success && result.data && result.data.issues_by_priority) {
-      return result.data.issues_by_priority;
     }
     
     return [];

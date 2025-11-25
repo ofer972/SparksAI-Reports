@@ -3,13 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import EpicsHierarchyPage from '@/components/hierarchy-table/EpicsHierarchyPage';
-import FlowStatusDurationPage from '@/components/flow-status-duration/FlowStatusDurationPage';
 import SprintPredictabilityPage from '@/components/sprint-predictability/SprintPredictabilityPage';
 import ReleasePredictabilityPage from '@/components/release-predictability/ReleasePredictabilityPage';
-import BugsByPriorityPage from '@/components/bugs-by-priority/BugsByPriorityPage';
 import PIMetricsPage from '@/components/pi-metrics/PIMetricsPage';
-import EpicDependenciesPage from '@/components/epic-dependencies/EpicDependenciesPage';
-import TeamsManagementPage from '@/components/manage-teams/TeamsManagementPage';
 import TeamDependencyGraphPage from '@/components/team-dependency-graph/TeamDependencyGraphPage';
 import DirectAISQLChatPage from '@/components/direct-ai-sql-chat/DirectAISQLChatPage';
 import ActiveSprintReportPage from '@/components/active-sprint-report/ActiveSprintReportPage';
@@ -23,21 +19,17 @@ export default function Home() {
     setAuthChecked(true);
   }, []);
 
-  const [activeNavItem, setActiveNavItem] = useState('report-one');
+  const [activeNavItem, setActiveNavItem] = useState('active-sprint-report');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const navigationItems = [
+    { id: 'active-sprint-report', label: 'Active Sprint Summary by team', icon: '🏃' },
     { id: 'report-one', label: 'Epic/Story Hierarchy', icon: '📊' },
-    { id: 'report-two', label: 'Flow Status Duration', icon: '📈' },
     { id: 'report-three', label: 'Sprint Predictability', icon: '📉' },
     { id: 'report-four', label: 'Release Predictability and Status', icon: '🚀' },
-    { id: 'report-five', label: 'Open Bugs by Priority', icon: '🐛' },
     { id: 'report-six', label: 'PI Metrics', icon: '📋' },
-    { id: 'report-seven', label: 'Epic Dependencies', icon: '🔗' },
-    { id: 'active-sprint-report', label: 'Active Sprint Summary by team', icon: '🏃' },
     { id: 'dependency-graph', label: 'Dependency Graph', icon: '🕸️' },
-    { id: 'teams-management', label: 'Teams Management', icon: '👥' },
     { id: 'direct-ai-sql-chat', label: 'Direct AI SQL Chat', icon: '💬' },
     { id: 'create-agent-jobs', label: 'Create Agent Jobs', icon: '⚙️' },
   ];
@@ -46,24 +38,16 @@ export default function Home() {
     switch (activeNavItem) {
       case 'report-one':
         return <EpicsHierarchyPage />;
-      case 'report-two':
-        return <FlowStatusDurationPage />;
       case 'report-three':
         return <SprintPredictabilityPage />;
       case 'report-four':
         return <ReleasePredictabilityPage />;
-      case 'report-five':
-        return <BugsByPriorityPage />;
       case 'report-six':
         return <PIMetricsPage />;
-      case 'report-seven':
-        return <EpicDependenciesPage />;
       case 'active-sprint-report':
         return <ActiveSprintReportPage />;
       case 'dependency-graph':
         return <TeamDependencyGraphPage />;
-      case 'teams-management':
-        return <TeamsManagementPage />;
       case 'direct-ai-sql-chat':
         return <DirectAISQLChatPage />;
       case 'create-agent-jobs':

@@ -10,7 +10,66 @@ import {
   SortingState,
 } from '@tanstack/react-table';
 import { ApiService } from '@/lib/api';
-import { ActiveSprintSummaryItem } from '@/lib/config';
+import { ActiveSprintSummaryItem, getCleanJiraUrl } from '@/lib/config';
+
+// ExpandableCell component for long text with Read More/Read Less
+const ExpandableCell = ({ content, maxLength = 150 }: { 
+  content: string; 
+  maxLength?: number;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const needsTruncation = content.length > maxLength;
+  
+  if (!needsTruncation) {
+    return (
+      <div className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+        {content}
+      </div>
+    );
+  }
+  
+  return (
+    <div className="relative">
+      {isExpanded ? (
+        <div className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+          {content}
+        </div>
+      ) : (
+        <div className="text-sm text-gray-700 whitespace-pre-wrap break-words line-clamp-2 overflow-hidden">
+          {content.substring(0, maxLength)}
+          {content.length > maxLength && (
+            <span className="opacity-70">...</span>
+          )}
+        </div>
+      )}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsExpanded(!isExpanded);
+        }}
+        className="mt-1 text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center gap-1 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+        aria-label={isExpanded ? 'Collapse content' : 'Expand content'}
+      >
+        {isExpanded ? (
+          <>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+            Read less
+          </>
+        ) : (
+          <>
+            Read more
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </>
+        )}
+      </button>
+    </div>
+  );
+};
 
 export default function ActiveSprintReportPage() {
   const [data, setData] = useState<ActiveSprintSummaryItem[]>([]);
@@ -63,12 +122,19 @@ export default function ActiveSprintReportPage() {
       return [];
     }
 
-    // Get all unique keys from the data (excluding team_name, sprint_name, and sprint_id which we'll handle specially)
+    // Get all unique keys from the data (excluding team_name, sprint_name, sprint_id, and _keys fields which we'll handle specially)
     const firstItem = data[0];
     const allKeys = Object.keys(firstItem);
     
-    // Filter out team_name, sprint_name, and sprint_id as they'll be first columns or excluded
-    const otherKeys = allKeys.filter(key => key !== 'team_name' && key !== 'sprint_name' && key !== 'sprint_id');
+    // Filter out team_name, sprint_name, sprint_id, start_date, overall_progress_pct_color, and all _keys fields (they're used for links/coloring, not displayed as columns)
+    const otherKeys = allKeys.filter(key => 
+      key !== 'team_name' && 
+      key !== 'sprint_name' && 
+      key !== 'sprint_id' &&
+      key !== 'start_date' &&
+      key !== 'overall_progress_pct_color' &&
+      !key.endsWith('_keys')
+    );
     
     // Build columns: team_name first, sprint_name second, then all other fields
     const builtColumns: ColumnDef<ActiveSprintSummaryItem>[] = [
@@ -125,30 +191,42 @@ export default function ActiveSprintReportPage() {
           }
         };
       } else if (typeof value === 'number') {
-        // Number field - check if it's a percentage field
+        // Number field - check if it's a percentage field or an issue count field that should be a link
         const isPercentage = key.toLowerCase().includes('pct') || key.toLowerCase().includes('percent') || key.toLowerCase().includes('progress');
         const isOverallProgressPct = key === 'overall_progress_pct';
-        cellRenderer = ({ getValue }) => {
+        // Check if this is an issue count field that has a corresponding _keys field
+        const hasKeysField = firstItem[`${key}_keys`] !== undefined;
+        const isIssueCountField = hasKeysField && (
+          key === 'issues_at_start' || 
+          key === 'issues_added' || 
+          key === 'issues_done' || 
+          key === 'flagged_issues' || 
+          key === 'issues_remaining'
+        );
+        
+        cellRenderer = ({ getValue, row }) => {
           const val = getValue() as number;
           if (val === null || val === undefined) {
             return <div className="text-sm text-gray-500 text-center">-</div>;
           }
           if (isOverallProgressPct) {
-            // Display with one decimal place, use original value for color coding:
-            // < 50%: Red bold, 50 to < 70%: Yellow bold, >= 70%: Green bold
+            // Display with one decimal place, use overall_progress_pct_color from API
             const formattedVal = val.toFixed(1);
+            const item = row.original;
+            const progressColor = item.overall_progress_pct_color;
+            
             let colorClass = 'text-gray-700';
-            // Use original value (val) for color determination
-            if (val < 50) {
-              // Below 50: Red bold
-              colorClass = 'text-red-600 font-bold';
-            } else if (val >= 50 && val < 70) {
-              // 50 to less than 70: Yellow bold (includes 69.6, 69.9, etc.)
-              colorClass = 'text-yellow-600 font-bold';
-            } else {
-              // 70 or above: Green bold
+            if (progressColor === 'green') {
               colorClass = 'text-green-600 font-bold';
+            } else if (progressColor === 'yellow') {
+              colorClass = 'text-yellow-600 font-bold';
+            } else if (progressColor === 'red') {
+              colorClass = 'text-red-600 font-bold';
+            } else {
+              // null - Unable to calculate
+              colorClass = 'text-gray-500';
             }
+            
             return (
               <div className={`text-sm text-center font-medium ${colorClass}`}>
                 {formattedVal}%
@@ -159,6 +237,39 @@ export default function ActiveSprintReportPage() {
             return (
               <div className="text-sm text-gray-700 text-center font-medium">
                 {val}%
+              </div>
+            );
+          }
+          // If it's an issue count field with keys, make it a clickable link
+          if (isIssueCountField) {
+            const item = row.original;
+            const issueKeys = item[`${key}_keys`] as string[] || [];
+            
+            if (!issueKeys || issueKeys.length === 0 || val === 0) {
+              return (
+                <div className="text-sm text-gray-500 text-center">
+                  {val.toLocaleString()}
+                </div>
+              );
+            }
+
+            const handleClick = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              const cleanJiraUrl = getCleanJiraUrl();
+              const keysParam = issueKeys.join(', ');
+              const jqlQuery = `key IN (${keysParam})`;
+              const encodedJql = encodeURIComponent(jqlQuery);
+              const jiraLink = `${cleanJiraUrl}/issues/?jql=${encodedJql}`;
+              window.open(jiraLink, '_blank');
+            };
+
+            return (
+              <div
+                className="text-sm font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer text-center"
+                onClick={handleClick}
+                title={issueKeys.join(', ')}
+              >
+                {val.toLocaleString()}
               </div>
             );
           }
@@ -179,21 +290,36 @@ export default function ActiveSprintReportPage() {
           );
         };
       } else {
-        // String or other
-        cellRenderer = ({ getValue }) => {
+        // String or other - check if it's sprint_goal for expandable functionality
+        const isSprintGoal = key === 'sprint_goal';
+        cellRenderer = ({ getValue, row }) => {
           const val = getValue();
+          if (!val) {
+            return (
+              <div className="text-sm text-gray-500">-</div>
+            );
+          }
+          
+          if (isSprintGoal) {
+            // Use ExpandableCell for sprint_goal
+            return <ExpandableCell content={String(val)} maxLength={150} />;
+          }
+          
           return (
             <div className="text-sm text-gray-700">
-              {val ? String(val) : '-'}
+              {String(val)}
             </div>
           );
         };
       }
 
+      // Make sprint_goal column wider
+      const columnSize = key === 'sprint_goal' ? 300 : 120;
+      
       builtColumns.push({
         accessorKey: key,
         header: key.toUpperCase().replace(/_/g, ' '),
-        size: 120,
+        size: columnSize,
         cell: cellRenderer,
       });
     });

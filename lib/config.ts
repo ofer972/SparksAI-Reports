@@ -115,11 +115,7 @@ export const API_CONFIG = {
     // Issues endpoints
     issues: {
       epicsHierarchy: '/issues/epics-hierarchy',
-      issueStatusDuration: '/issues/issue-status-duration',
-      issueStatusDurationWithKeys: '/issues/issue-status-duration-with-issue-keys',
-      issueStatusDurationPerMonth: '/issues/issue-status-duration-per-month',
       releasePredictability: '/issues/release-predictability',
-      issuesGroupedByPriority: '/issues/issues-grouped-by-priority',
       issuesGroupedByTeam: '/issues/issues-grouped-by-team',
       epicOutboundDependencyLoadByQuarter: '/issues/epic-outbound-dependency-metrics-by-quarter',
       epicInboundDependencyLoadByQuarter: '/issues/epic-inbound-dependency-load-by-quarter',
@@ -371,55 +367,6 @@ export interface EpicsHierarchyResponse {
   message: string;
 }
 
-// Flow Status Duration Types
-export interface StatusDuration {
-  status_name: string;
-  avg_duration_days: number;
-}
-
-export interface IssueStatusDurationResponse {
-  success: boolean;
-  data: {
-    status_durations: StatusDuration[];
-    count: number;
-    months: number;
-  };
-  message: string;
-}
-
-export interface IssueStatusDurationIssue {
-  issue_key: string;
-  issue_summary: string;
-  duration_days: number;
-}
-
-export interface IssueStatusDurationWithKeysResponse {
-  success: boolean;
-  data: {
-    issues: IssueStatusDurationIssue[];
-    count: number;
-    status_name: string;
-    months: number;
-  };
-  message: string;
-}
-
-export interface MonthlyStatusDurationDataset {
-  label: string;
-  data: number[];
-}
-
-export interface IssueStatusDurationPerMonthResponse {
-  success: boolean;
-  data: {
-    labels: string[];
-    datasets: MonthlyStatusDurationDataset[];
-    months: number;
-    team_name: string;
-  };
-  message: string;
-}
-
 export interface SprintPredictabilityItem {
   sprint_name: string;
   sprint_id: string;
@@ -469,20 +416,6 @@ export interface ReleasePredictabilityResponse {
   message: string;
 }
 
-export interface IssueByPriority {
-  priority: string;
-  issue_count: number;
-}
-
-export interface IssuesByPriorityResponse {
-  success: boolean;
-  data: {
-    issues_by_priority: IssueByPriority[];
-    count: number;
-  };
-  message: string;
-}
-
 export interface PriorityCount {
   priority: string;
   issue_count: number;
@@ -510,11 +443,17 @@ export interface ActiveSprintSummaryItem {
   start_date: string;
   end_date: string;
   overall_progress_pct: number;
+  overall_progress_pct_color: 'green' | 'yellow' | 'red' | null;
   issues_at_start: number;
+  issues_at_start_keys: string[];
   issues_added: number;
+  issues_added_keys: string[];
   issues_done: number;
+  issues_done_keys: string[];
   flagged_issues: number;
+  flagged_issues_keys: string[];
   issues_remaining: number;
+  issues_remaining_keys: string[];
   sprint_goal: string;
   [key: string]: any; // Allow for additional fields
 }
