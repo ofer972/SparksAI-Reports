@@ -119,7 +119,19 @@ export default function CreateAgentJobsPage() {
       }
 
       if (response?.success) {
-        setToast('Agent job created');
+        // Build toast message with agent name, PI, and team if they exist
+        const agentName = insightType.name || 'Agent';
+        const parts: string[] = [`${agentName} job created`];
+        
+        if (selectedPI[insightType.id]) {
+          parts.push(`PI: ${selectedPI[insightType.id]}`);
+        }
+        
+        if (selectedTeam[insightType.id]) {
+          parts.push(`Team: ${selectedTeam[insightType.id]}`);
+        }
+        
+        setToast(parts.join(', '));
       } else {
         setErrorModal(response?.message || 'Failed to create job');
       }
