@@ -15,6 +15,8 @@ export default function CreateAgentJobsPage() {
   const [availableTeams, setAvailableTeams] = useState<string[]>([]);
   const [selectedPI, setSelectedPI] = useState<Record<string | number, string>>({});
   const [selectedTeam, setSelectedTeam] = useState<Record<string | number, string>>({});
+  const [globalTeamFilter, setGlobalTeamFilter] = useState<string>('');
+  const [globalPIFilter, setGlobalPIFilter] = useState<string>('');
   const [loading, setLoading] = useState<Record<string | number, boolean>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
@@ -81,6 +83,50 @@ export default function CreateAgentJobsPage() {
     fetchPIs();
     fetchTeams();
   }, []);
+
+  // Apply global team filter when insight types or filter changes
+  useEffect(() => {
+    if (globalTeamFilter && insightTypes.length > 0) {
+      const teamInsightIds = insightTypes
+        .filter(type => type.requireTeam === true)
+        .map(type => type.id);
+      
+      setSelectedTeam(prev => {
+        const updated = { ...prev };
+        teamInsightIds.forEach(id => {
+          updated[id] = globalTeamFilter;
+        });
+        return updated;
+      });
+    }
+  }, [globalTeamFilter, insightTypes]);
+
+  // Apply global PI filter when insight types or filter changes
+  useEffect(() => {
+    if (globalPIFilter && insightTypes.length > 0) {
+      const piInsightIds = insightTypes
+        .filter(type => type.requireTeam !== true)
+        .map(type => type.id);
+      
+      setSelectedPI(prev => {
+        const updated = { ...prev };
+        piInsightIds.forEach(id => {
+          updated[id] = globalPIFilter;
+        });
+        return updated;
+      });
+    }
+  }, [globalPIFilter, insightTypes]);
+
+  // Handle global team filter - applies to all team insights
+  const handleGlobalTeamFilter = (team: string) => {
+    setGlobalTeamFilter(team);
+  };
+
+  // Handle global PI filter - applies to all PI insights
+  const handleGlobalPIFilter = (pi: string) => {
+    setGlobalPIFilter(pi);
+  };
 
   // Create job handler
   const handleCreateJob = async (insightType: InsightType) => {
@@ -150,15 +196,15 @@ export default function CreateAgentJobsPage() {
     const isLoading = loading[insightType.id] || false;
 
     return (
-      <div key={insightType.id} className="bg-white rounded-lg shadow-lg border-2 border-gray-300 p-4 h-[240px] flex flex-col">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div key={insightType.id} className="bg-white rounded-lg shadow-lg border-2 border-gray-300 p-2 flex flex-col w-full">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1.5">
           {insightType.name || `Insight Type ${insightType.id}`}
         </h3>
         
-        <div className="space-y-3 mb-3">
+        <div className="space-y-2">
           {insightType.requirePI && (
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-700 whitespace-nowrap w-16">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap w-12">
                 PI:
               </label>
               <select
@@ -167,7 +213,7 @@ export default function CreateAgentJobsPage() {
                   ...prev,
                   [insightType.id]: e.target.value
                 }))}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isLoading}
               >
                 <option value="">Select PI</option>
@@ -183,8 +229,8 @@ export default function CreateAgentJobsPage() {
           )}
           
           {insightType.requireTeam && (
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-700 whitespace-nowrap w-16">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap w-12">
                 Team:
               </label>
               <select
@@ -193,7 +239,7 @@ export default function CreateAgentJobsPage() {
                   ...prev,
                   [insightType.id]: e.target.value
                 }))}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isLoading}
               >
                 <option value="">Select Team</option>
@@ -210,19 +256,37 @@ export default function CreateAgentJobsPage() {
         </div>
 
         {(!insightType.requirePI && !insightType.requireTeam) && (
-          <p className="text-sm text-gray-500 mb-2">No filters required for this insight type.</p>
+          <p className="text-xs text-gray-500 mb-1.5">No filters required for this insight type.</p>
         )}
 
-        <button
-          onClick={() => handleCreateJob(insightType)}
-          disabled={!canCreate || isLoading}
-          className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors mt-auto"
-        >
-          {isLoading ? 'Creating...' : 'Create Job'}
-        </button>
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={() => handleCreateJob(insightType)}
+            disabled={!canCreate || isLoading}
+            className="w-auto px-4 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            {isLoading ? 'Creating...' : 'Create Job'}
+          </button>
+        </div>
       </div>
     );
   };
+
+  // Separate insight types into Team Insights and PI Insights
+  // Team Insights: requireTeam === true
+  // PI Insights: requireTeam !== true
+  // Sort team insights: those that don't require PI first, then those that require PI
+  const teamInsights = insightTypes
+    .filter(type => type.requireTeam === true)
+    .sort((a, b) => {
+      // If a requires PI and b doesn't, b comes first
+      if (a.requirePI && !b.requirePI) return 1;
+      // If b requires PI and a doesn't, a comes first
+      if (!a.requirePI && b.requirePI) return -1;
+      // Otherwise maintain original order
+      return 0;
+    });
+  const piInsights = insightTypes.filter(type => type.requireTeam !== true);
 
   return (
     <div className="space-y-4">
@@ -248,8 +312,84 @@ export default function CreateAgentJobsPage() {
       )}
 
       {!fetching && !fetchError && insightTypes.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {insightTypes.map(renderInsightTypeCard)}
+        <div className="flex flex-col md:flex-row gap-[4.5rem] items-start">
+          {/* Team Insights Container - Left Side */}
+          <div className="flex-1 max-w-[40%]">
+            <div className="bg-white rounded-lg border border-gray-500 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Team Insights</h2>
+              
+              {/* Global Team Filter */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Team:
+                </label>
+                <select
+                  value={globalTeamFilter}
+                  onChange={(e) => handleGlobalTeamFilter(e.target.value)}
+                  className="w-[60%] px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={teamInsights.length === 0}
+                >
+                  <option value="">Select Team (applies to all)</option>
+                  {availableTeams.length > 0 ? (
+                    availableTeams.map(team => (
+                      <option key={team} value={team}>{team}</option>
+                    ))
+                  ) : (
+                    <option value="" disabled>Loading Teams...</option>
+                  )}
+                </select>
+              </div>
+
+              {teamInsights.length > 0 ? (
+                <div className="space-y-4">
+                  {teamInsights.map(renderInsightTypeCard)}
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 text-center">
+                  <p className="text-gray-500">No Team Insights available</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* PI Insights Container - Right Side */}
+          <div className="flex-1 max-w-[40%]">
+            <div className="bg-white rounded-lg border border-gray-500 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">PI Insights</h2>
+              
+              {/* Global PI Filter */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select PI:
+                </label>
+                <select
+                  value={globalPIFilter}
+                  onChange={(e) => handleGlobalPIFilter(e.target.value)}
+                  className="w-[60%] px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={piInsights.length === 0}
+                >
+                  <option value="">Select PI (applies to all)</option>
+                  {availablePIs.length > 0 ? (
+                    availablePIs.map(pi => (
+                      <option key={pi} value={pi}>{pi}</option>
+                    ))
+                  ) : (
+                    <option value="" disabled>Loading PIs...</option>
+                  )}
+                </select>
+              </div>
+
+              {piInsights.length > 0 ? (
+                <div className="space-y-4">
+                  {piInsights.map(renderInsightTypeCard)}
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 text-center">
+                  <p className="text-gray-500">No PI Insights available</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
