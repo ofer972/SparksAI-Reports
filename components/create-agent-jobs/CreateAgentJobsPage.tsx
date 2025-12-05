@@ -400,10 +400,10 @@ export default function CreateAgentJobsPage() {
       )}
 
       {!fetching && !fetchError && insightTypes.length > 0 && (
-        <div className="flex flex-col md:flex-row gap-1 items-start">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-1 items-start">
           {/* Team Insights Container - Left Side */}
-          <div className="flex-1 max-w-[32%]">
-            <div className="bg-white rounded-lg border border-gray-500 p-6 transform scale-[0.8] origin-top-left">
+          <div className="w-full md:flex-1 md:max-w-[32%]">
+            <div className="bg-white rounded-lg border border-gray-500 p-4 md:p-6 md:transform md:scale-[0.8] md:origin-top-left">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Team Insights</h2>
               
               {/* Global Team Filter */}
@@ -414,7 +414,7 @@ export default function CreateAgentJobsPage() {
                 <select
                   value={globalTeamFilter}
                   onChange={(e) => handleGlobalTeamFilter(e.target.value)}
-                  className="w-[60%] px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full md:w-[60%] px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={teamInsights.length === 0}
                 >
                   <option value="">Select Team (applies to all)</option>
@@ -441,8 +441,8 @@ export default function CreateAgentJobsPage() {
           </div>
 
           {/* Group Insights Container - Middle */}
-          <div className="flex-1 max-w-[32%]">
-            <div className="bg-white rounded-lg border border-gray-500 p-6 transform scale-[0.8] origin-top-left">
+          <div className="w-full md:flex-1 md:max-w-[32%]">
+            <div className="bg-white rounded-lg border border-gray-500 p-4 md:p-6 md:transform md:scale-[0.8] md:origin-top-left">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Group Insights</h2>
               
               {/* Global Group Filter */}
@@ -453,7 +453,7 @@ export default function CreateAgentJobsPage() {
                 <select
                   value={globalGroupFilter}
                   onChange={(e) => handleGlobalGroupFilter(e.target.value)}
-                  className="w-[60%] px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full md:w-[60%] px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={groupInsights.length === 0}
                 >
                   <option value="">Select Group (applies to all)</option>
@@ -480,8 +480,8 @@ export default function CreateAgentJobsPage() {
           </div>
 
           {/* PI Insights Container - Right Side */}
-          <div className="flex-1 max-w-[32%]">
-            <div className="bg-white rounded-lg border border-gray-500 p-6 transform scale-[0.8] origin-top-left">
+          <div className="w-full md:flex-1 md:max-w-[32%]">
+            <div className="bg-white rounded-lg border border-gray-500 p-4 md:p-6 md:transform md:scale-[0.8] md:origin-top-left">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">PI Insights</h2>
               
               {/* Global PI Filter */}
@@ -492,7 +492,7 @@ export default function CreateAgentJobsPage() {
                 <select
                   value={globalPIFilter}
                   onChange={(e) => handleGlobalPIFilter(e.target.value)}
-                  className="w-[60%] px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full md:w-[60%] px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={piInsights.length === 0}
                 >
                   <option value="">Select PI (applies to all)</option>
