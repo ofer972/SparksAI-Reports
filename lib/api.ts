@@ -116,6 +116,24 @@ export class ApiService {
     return result.data;
   }
 
+  // Groups API
+  async getGroups(): Promise<{ groups: string[] }> {
+    const response = await fetch(buildBackendUrl(API_CONFIG.endpoints.groups.getHierarchy));
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch groups: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    // API returns: { success: true, data: { groups: [...], count: number }, message: string }
+    if (result && result.success && result.data && Array.isArray(result.data.groups)) {
+      const groupNames = result.data.groups.map((g: any) => g.name || g.group_name);
+      return { groups: groupNames };
+    }
+    
+    return { groups: [] };
+  }
+
   // PI Status For Today API
   async getPIStatusForToday(targetPiName: string): Promise<PIStatusForTodayResponse> {
     const params = new URLSearchParams({
@@ -778,6 +796,40 @@ export class ApiService {
     
     return response.json();
   }
+
+  // When only Group is required
+  async createGroupJob(
+    jobType: string,
+    groupName: string
+  ): Promise<CreateJobResponse> {
+    const response = await fetch(
+      buildBackendUrl('/agent-jobs/create-group-job'),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_type: jobType,
+          group_name: groupName
+        })
+      }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+    
+    return response.json();
+  }
 }
 
 // Legacy class for backward compatibility
@@ -796,6 +848,7 @@ export class BurndownApiService {
     return this.apiService.getBurndownData(teamName, issueType, sprintName);
   }
 }
+
 
 
 

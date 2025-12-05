@@ -13,10 +13,13 @@ export default function CreateAgentJobsPage() {
   const [insightTypes, setInsightTypes] = useState<InsightType[]>([]);
   const [availablePIs, setAvailablePIs] = useState<string[]>([]);
   const [availableTeams, setAvailableTeams] = useState<string[]>([]);
+  const [availableGroups, setAvailableGroups] = useState<string[]>([]);
   const [selectedPI, setSelectedPI] = useState<Record<string | number, string>>({});
   const [selectedTeam, setSelectedTeam] = useState<Record<string | number, string>>({});
+  const [selectedGroup, setSelectedGroup] = useState<Record<string | number, string>>({});
   const [globalTeamFilter, setGlobalTeamFilter] = useState<string>('');
   const [globalPIFilter, setGlobalPIFilter] = useState<string>('');
+  const [globalGroupFilter, setGlobalGroupFilter] = useState<string>('');
   const [loading, setLoading] = useState<Record<string | number, boolean>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
@@ -48,6 +51,18 @@ export default function CreateAgentJobsPage() {
     }
   };
 
+  // Fetch available Groups for dropdown
+  const fetchGroups = async () => {
+    try {
+      const groupsResponse = await apiService.getGroups();
+      if (groupsResponse.groups && groupsResponse.groups.length > 0) {
+        setAvailableGroups(groupsResponse.groups);
+      }
+    } catch (err) {
+      console.error('Failed to fetch groups:', err);
+    }
+  };
+
   // Fetch active insight types
   const fetchInsightTypes = async () => {
     setFetching(true);
@@ -55,14 +70,16 @@ export default function CreateAgentJobsPage() {
     try {
       const response = await apiService.getActiveInsightTypes();
       // Normalize field names - API returns snake_case, we need camelCase
-      // API fields: insight_type, requires_pi, requires_team
+      // API fields: insight_type, insight_description, requires_pi, requires_team, requires_group
       const normalizedTypes = response.insight_types.map((type: any) => {
         // Map API field names to component field names
         const normalized = {
           id: type.id,
           name: type.name || type.insight_type || 'Unknown',
+          description: type.description || type.insight_description || '',
           requirePI: Boolean(type.requirePI ?? type.requires_pi ?? type.require_pi ?? false),
           requireTeam: Boolean(type.requireTeam ?? type.requires_team ?? type.require_team ?? false),
+          requireGroup: Boolean(type.requireGroup ?? type.requires_group ?? type.require_group ?? false),
           active: Boolean(type.active ?? type.is_active ?? false),
           ...type // Keep original fields for reference
         };
@@ -82,6 +99,7 @@ export default function CreateAgentJobsPage() {
     fetchInsightTypes();
     fetchPIs();
     fetchTeams();
+    fetchGroups();
   }, []);
 
   // Apply global team filter when insight types or filter changes
@@ -105,7 +123,7 @@ export default function CreateAgentJobsPage() {
   useEffect(() => {
     if (globalPIFilter && insightTypes.length > 0) {
       const piInsightIds = insightTypes
-        .filter(type => type.requireTeam !== true)
+        .filter(type => type.requireTeam !== true && type.requireGroup !== true)
         .map(type => type.id);
       
       setSelectedPI(prev => {
@@ -118,6 +136,23 @@ export default function CreateAgentJobsPage() {
     }
   }, [globalPIFilter, insightTypes]);
 
+  // Apply global group filter when insight types or filter changes
+  useEffect(() => {
+    if (globalGroupFilter && insightTypes.length > 0) {
+      const groupInsightIds = insightTypes
+        .filter(type => type.requireGroup === true)
+        .map(type => type.id);
+      
+      setSelectedGroup(prev => {
+        const updated = { ...prev };
+        groupInsightIds.forEach(id => {
+          updated[id] = globalGroupFilter;
+        });
+        return updated;
+      });
+    }
+  }, [globalGroupFilter, insightTypes]);
+
   // Handle global team filter - applies to all team insights
   const handleGlobalTeamFilter = (team: string) => {
     setGlobalTeamFilter(team);
@@ -126,6 +161,11 @@ export default function CreateAgentJobsPage() {
   // Handle global PI filter - applies to all PI insights
   const handleGlobalPIFilter = (pi: string) => {
     setGlobalPIFilter(pi);
+  };
+
+  // Handle global group filter - applies to all group insights
+  const handleGlobalGroupFilter = (group: string) => {
+    setGlobalGroupFilter(group);
   };
 
   // Create job handler
@@ -137,6 +177,10 @@ export default function CreateAgentJobsPage() {
     }
     if (insightType.requireTeam && !selectedTeam[insightType.id]) {
       setErrorModal('Team is required for this insight type');
+      return;
+    }
+    if (insightType.requireGroup && !selectedGroup[insightType.id]) {
+      setErrorModal('Group is required for this insight type');
       return;
     }
 
@@ -162,10 +206,15 @@ export default function CreateAgentJobsPage() {
           jobType,
           selectedPI[insightType.id]
         );
+      } else if (insightType.requireGroup) {
+        response = await apiService.createGroupJob(
+          jobType,
+          selectedGroup[insightType.id]
+        );
       }
 
       if (response?.success) {
-        // Build toast message with agent name, PI, and team if they exist
+        // Build toast message with agent name, PI, team, and group if they exist
         const agentName = insightType.name || 'Agent';
         const parts: string[] = [`${agentName} job created`];
         
@@ -175,6 +224,10 @@ export default function CreateAgentJobsPage() {
         
         if (selectedTeam[insightType.id]) {
           parts.push(`Team: ${selectedTeam[insightType.id]}`);
+        }
+        
+        if (selectedGroup[insightType.id]) {
+          parts.push(`Group: ${selectedGroup[insightType.id]}`);
         }
         
         setToast(parts.join(', '));
@@ -192,7 +245,8 @@ export default function CreateAgentJobsPage() {
   const renderInsightTypeCard = (insightType: InsightType) => {
     const canCreate = 
       (!insightType.requirePI || selectedPI[insightType.id]) &&
-      (!insightType.requireTeam || selectedTeam[insightType.id]);
+      (!insightType.requireTeam || selectedTeam[insightType.id]) &&
+      (!insightType.requireGroup || selectedGroup[insightType.id]);
     const isLoading = loading[insightType.id] || false;
 
     return (
@@ -200,6 +254,12 @@ export default function CreateAgentJobsPage() {
         <h3 className="text-lg font-semibold text-gray-900 mb-1.5">
           {insightType.name || `Insight Type ${insightType.id}`}
         </h3>
+        
+        {insightType.description && (
+          <p className="text-sm text-gray-600 mb-2">
+            {insightType.description}
+          </p>
+        )}
         
         <div className="space-y-2">
           {insightType.requirePI && (
@@ -253,9 +313,35 @@ export default function CreateAgentJobsPage() {
               </select>
             </div>
           )}
+          
+          {insightType.requireGroup && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap w-12">
+                Group:
+              </label>
+              <select
+                value={selectedGroup[insightType.id] || ''}
+                onChange={(e) => setSelectedGroup(prev => ({
+                  ...prev,
+                  [insightType.id]: e.target.value
+                }))}
+                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isLoading}
+              >
+                <option value="">Select Group</option>
+                {availableGroups.length > 0 ? (
+                  availableGroups.map(group => (
+                    <option key={group} value={group}>{group}</option>
+                  ))
+                ) : (
+                  <option value="" disabled>Loading Groups...</option>
+                )}
+              </select>
+            </div>
+          )}
         </div>
 
-        {(!insightType.requirePI && !insightType.requireTeam) && (
+        {(!insightType.requirePI && !insightType.requireTeam && !insightType.requireGroup) && (
           <p className="text-xs text-gray-500 mb-1.5">No filters required for this insight type.</p>
         )}
 
@@ -272,12 +358,13 @@ export default function CreateAgentJobsPage() {
     );
   };
 
-  // Separate insight types into Team Insights and PI Insights
+  // Separate insight types into Team Insights, Group Insights, and PI Insights
   // Team Insights: requireTeam === true
-  // PI Insights: requireTeam !== true
+  // Group Insights: requireGroup === true
+  // PI Insights: requireTeam !== true && requireGroup !== true
   // Sort team insights: those that don't require PI first, then those that require PI
   const teamInsights = insightTypes
-    .filter(type => type.requireTeam === true)
+    .filter(type => type.requireTeam === true && !type.requireGroup)
     .sort((a, b) => {
       // If a requires PI and b doesn't, b comes first
       if (a.requirePI && !b.requirePI) return 1;
@@ -286,7 +373,8 @@ export default function CreateAgentJobsPage() {
       // Otherwise maintain original order
       return 0;
     });
-  const piInsights = insightTypes.filter(type => type.requireTeam !== true);
+  const groupInsights = insightTypes.filter(type => type.requireGroup === true);
+  const piInsights = insightTypes.filter(type => type.requireTeam !== true && type.requireGroup !== true);
 
   return (
     <div className="space-y-4">
@@ -357,10 +445,37 @@ export default function CreateAgentJobsPage() {
             <div className="bg-white rounded-lg border border-gray-500 p-6 transform scale-[0.8] origin-top-left">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Group Insights</h2>
               
-              {/* Empty container for now */}
-              <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 text-center">
-                <p className="text-gray-500">No Group Insights available</p>
+              {/* Global Group Filter */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Select Group:
+                </label>
+                <select
+                  value={globalGroupFilter}
+                  onChange={(e) => handleGlobalGroupFilter(e.target.value)}
+                  className="w-[60%] px-3 py-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={groupInsights.length === 0}
+                >
+                  <option value="">Select Group (applies to all)</option>
+                  {availableGroups.length > 0 ? (
+                    availableGroups.map(group => (
+                      <option key={group} value={group}>{group}</option>
+                    ))
+                  ) : (
+                    <option value="" disabled>Loading Groups...</option>
+                  )}
+                </select>
               </div>
+
+              {groupInsights.length > 0 ? (
+                <div className="space-y-4">
+                  {groupInsights.map(renderInsightTypeCard)}
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 text-center">
+                  <p className="text-gray-500">No Group Insights available</p>
+                </div>
+              )}
             </div>
           </div>
 

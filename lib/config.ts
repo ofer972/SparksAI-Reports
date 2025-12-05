@@ -475,6 +475,7 @@ export interface InsightType {
   name: string;
   requirePI: boolean;
   requireTeam: boolean;
+  requireGroup?: boolean;
   active?: boolean;
   [key: string]: any; // Allow for additional fields from API
 }
@@ -489,5 +490,6 @@ export interface CreateJobResponse {
   data?: any;
   message: string;
 }
+
 
 
