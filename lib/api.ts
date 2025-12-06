@@ -32,7 +32,8 @@ import {
   InsightTypesResponse,
   InsightType,
   CreateJobResponse,
-  TopDependenciesSummaryResponse
+  TopDependenciesSummaryResponse,
+  AverageEpicCycleTimeResponse
 } from './config';
 
 // Re-export types for convenience
@@ -640,6 +641,21 @@ export class ApiService {
     
     if (!response.ok) {
       throw new Error(`Failed to fetch top dependencies summary: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  // Average Epic Cycle Time API
+  async getAverageEpicCycleTime(months: number = 6): Promise<AverageEpicCycleTimeResponse> {
+    const params = new URLSearchParams();
+    params.append('months', months.toString());
+    
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.pis.getAverageEpicCycleTime)}?${params}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch average epic cycle time: ${response.statusText}`);
     }
 
     return response.json();

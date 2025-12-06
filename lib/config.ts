@@ -54,6 +54,7 @@ export const API_CONFIG = {
       getScopeChanges: '/pis/scope-changes',
       getPIStatusForToday: '/pis/get-pi-status-for-today',
       getTopDependenciesSummary: '/pis/top-dependencies-summary',
+      getAverageEpicCycleTime: '/pis/average-epic-cycle-time',
     },
     
     // Burndown endpoints
@@ -517,6 +518,18 @@ export interface TopDependenciesSummaryResponse {
       inbound: number;
       outbound: number;
     };
+  };
+  message: string;
+}
+
+export interface AverageEpicCycleTimeResponse {
+  success: boolean;
+  data: {
+    average_epic_cycle_time: number;
+    average_epic_cycle_time_status: 'red' | 'yellow' | 'green';
+    months: number;
+    epic_count: number;
+    team_name: string | null;
   };
   message: string;
 }

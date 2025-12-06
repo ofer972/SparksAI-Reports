@@ -135,6 +135,11 @@ export default function PIMetricsPage() {
     outbound?: Array<{ team: string; uncompletedIssues: number }>;
     inbound?: Array<{ team: string; uncompletedIssues: number }>;
   }>({});
+  const [averageCycleTime, setAverageCycleTime] = useState<{
+    value?: number;
+    color?: 'red' | 'yellow' | 'green';
+    epicCount?: number;
+  }>({});
   const [selectedPI, setSelectedPI] = useState<string>('Q42025');
   const [availablePIs, setAvailablePIs] = useState<string[]>([]);
   const [piInput, setPiInput] = useState<string>('Q42025');
@@ -249,8 +254,27 @@ export default function PIMetricsPage() {
       }
     };
 
+    const fetchAverageCycleTime = async () => {
+      try {
+        const response = await apiService.getAverageEpicCycleTime(6);
+        if (response.success && response.data) {
+          setAverageCycleTime({
+            value: response.data.average_epic_cycle_time,
+            color: response.data.average_epic_cycle_time_status,
+            epicCount: response.data.epic_count,
+          });
+        } else {
+          setAverageCycleTime({});
+        }
+      } catch (err) {
+        console.error('Failed to fetch average epic cycle time:', err);
+        setAverageCycleTime({});
+      }
+    };
+
     fetchPIStatus();
     fetchDependencies();
+    fetchAverageCycleTime();
   }, [selectedPI]);
 
   const metrics = [
@@ -268,8 +292,13 @@ export default function PIMetricsPage() {
     },
     {
       title: 'Average Epic Cycle Time',
-      tooltip: 'Average cycle time of EPIC in the last three PIs',
-      value: undefined,
+      tooltip: averageCycleTime.value !== undefined && averageCycleTime.epicCount !== undefined
+        ? `Average cycle time: ${averageCycleTime.value.toFixed(2)} days (${averageCycleTime.epicCount} epics completed, last 6 months)`
+        : 'Average cycle time of EPIC in the last 6 months',
+      value: averageCycleTime.value !== undefined
+        ? `${averageCycleTime.value.toFixed(1)} days`
+        : undefined,
+      color: averageCycleTime.color,
       icon: '⏱️',
       dependencies: undefined,
     },
@@ -313,93 +342,11 @@ export default function PIMetricsPage() {
     },
   ];
 
-  const handleApplyFilter = async () => {
+  const handleApplyFilter = () => {
     const piName = piInput.trim();
     if (piName) {
       setSelectedPI(piName);
-      // Manually trigger fetch for PI status (includes both Epic Closure and WIP data)
-      setLoading(true);
-      try {
-        const apiService = new ApiService();
-        
-        // Fetch PI status data
-        const response = await apiService.getPIStatusForToday(piName);
-        console.log('Full Response (handleApplyFilter):', response);
-        if (response.data && response.data.length > 0) {
-          const firstItem = response.data[0];
-          console.log('First Item (all fields - handleApplyFilter):', firstItem);
-          console.log('All field names (handleApplyFilter):', Object.keys(firstItem));
-          console.log('Field values (handleApplyFilter):', {
-            'progress_delta_pct_status': firstItem['progress_delta_pct_status'],
-            'progress_delta_pct': firstItem['progress_delta_pct'],
-            'planned_epics': firstItem['planned_epics'],
-            'added_epics': firstItem['added_epics'],
-            'removed_epics': firstItem['removed_epics'],
-            'in_progress_percentage': firstItem['in_progress_percentage'],
-            'count_in_progress_status': firstItem['count_in_progress_status'],
-            'total_issues': firstItem['total_issues'],
-            'remaining_epics': firstItem['remaining_epics'],
-            'ideal_remaining': firstItem['ideal_remaining'],
-          });
-          // Extract fields from response
-          const statusValue = firstItem['progress_delta_pct_status'];
-          const progressValue = firstItem['progress_delta_pct'];
-          const plannedEpics = firstItem['planned_epics'] || 0;
-          const addedEpics = firstItem['added_epics'] || 0;
-          const removedEpics = firstItem['removed_epics'] || 0;
-          // Calculate total epics: planned + added - removed
-          const totalEpics = plannedEpics + addedEpics - removedEpics;
-          const inProgressPct = firstItem['in_progress_percentage'];
-          // Calculate in-progress count from percentage and total epics
-          const inProgressCount = totalEpics > 0 && inProgressPct !== undefined 
-            ? Math.round(totalEpics * (inProgressPct / 100))
-            : undefined;
-          
-          console.log('Calculated values (handleApplyFilter):', {
-            totalEpics,
-            inProgressPct,
-            inProgressCount,
-            inProgressStatus: firstItem['count_in_progress_status'],
-          });
-          
-          setEpicClosureData({
-            value: progressValue,
-            color: statusValue,
-            totalIssue: firstItem['total_issues'],
-            remainingEpics: firstItem['remaining_epics'],
-            idealRemaining: firstItem['ideal_remaining'],
-            // WIP fields from the same endpoint
-            totalEpics: totalEpics,
-            inProgressPercentage: inProgressPct,
-            inProgressCount: inProgressCount,
-            inProgressStatus: firstItem['count_in_progress_status'],
-          });
-        } else {
-          setEpicClosureData({});
-        }
-
-        // Fetch dependencies data
-        const depsResponse = await apiService.getTopDependenciesSummary(piName);
-        if (depsResponse.success && depsResponse.data) {
-          const outbound = depsResponse.data.top_outbound_dependencies.map(dep => ({
-            team: dep.owned_team,
-            uncompletedIssues: dep.uncompleted_issues
-          }));
-          const inbound = depsResponse.data.top_inbound_dependencies.map(dep => ({
-            team: dep.assignee_team,
-            uncompletedIssues: dep.uncompleted_issues
-          }));
-          setDependenciesData({ outbound, inbound });
-        } else {
-          setDependenciesData({});
-        }
-      } catch (err) {
-        console.error('Failed to fetch data:', err);
-        setEpicClosureData({});
-        setDependenciesData({});
-      } finally {
-        setLoading(false);
-      }
+      // The useEffect will automatically fetch data when selectedPI changes
     }
   };
 
