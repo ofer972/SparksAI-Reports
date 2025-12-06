@@ -53,6 +53,7 @@ export const API_CONFIG = {
       getBurndown: '/pis/burndown',
       getScopeChanges: '/pis/scope-changes',
       getPIStatusForToday: '/pis/get-pi-status-for-today',
+      getTopDependenciesSummary: '/pis/top-dependencies-summary',
     },
     
     // Burndown endpoints
@@ -488,6 +489,35 @@ export interface InsightTypesResponse {
 export interface CreateJobResponse {
   success: boolean;
   data?: any;
+  message: string;
+}
+
+export interface TopInboundDependency {
+  assignee_team: string;
+  volume_of_work_relied_upon: number;
+  completed_issues_dependent_count: number;
+  uncompleted_issues: number;
+}
+
+export interface TopOutboundDependency {
+  owned_team: string;
+  number_of_epics_owned: number;
+  number_of_dependent_issues: number;
+  completed_dependent_issues_count: number;
+  uncompleted_issues: number;
+}
+
+export interface TopDependenciesSummaryResponse {
+  success: boolean;
+  data: {
+    top_inbound_dependencies: TopInboundDependency[];
+    top_outbound_dependencies: TopOutboundDependency[];
+    pi: string;
+    count: {
+      inbound: number;
+      outbound: number;
+    };
+  };
   message: string;
 }
 

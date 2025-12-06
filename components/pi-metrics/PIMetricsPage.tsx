@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ApiService } from '@/lib/api';
 
 interface MetricCardProps {
-  title: string;
+  title: string | React.ReactNode;
   tooltip: string;
   value?: string | number;
   loading?: boolean;
@@ -14,9 +14,10 @@ interface MetricCardProps {
   idealRemaining?: number;
   totalEpics?: number;
   inProgressPercentage?: number;
+  dependencies?: Array<{ team: string; uncompletedIssues: number }>;
 }
 
-function MetricCard({ title, tooltip, value, loading, icon, color, remainingEpics, idealRemaining, totalEpics, inProgressPercentage }: MetricCardProps) {
+function MetricCard({ title, tooltip, value, loading, icon, color, remainingEpics, idealRemaining, totalEpics, inProgressPercentage, dependencies }: MetricCardProps) {
   // Get color class based on status
   const getColorClass = () => {
     if (color === 'red') return 'text-red-600';
@@ -26,7 +27,7 @@ function MetricCard({ title, tooltip, value, loading, icon, color, remainingEpic
   };
 
   return (
-    <div className="relative group flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 p-4 flex flex-col items-center justify-center min-h-[135px] min-w-[150px] max-w-[180px]">
+    <div className="relative group flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 p-3 flex flex-col items-center justify-center min-h-[85px] min-w-[175px] max-w-[208px]">
       {/* Tooltip - appears on top */}
       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity z-50">
         <div className="relative">
@@ -41,7 +42,11 @@ function MetricCard({ title, tooltip, value, loading, icon, color, remainingEpic
       </div>
 
       {/* Icon at top or Epic Closure info or In Progress Epics info */}
-      {remainingEpics !== undefined || idealRemaining !== undefined ? (
+      {dependencies && dependencies.length > 0 ? (
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs font-semibold text-gray-700 text-center whitespace-nowrap">
+          Teams with top 3 Dependencies
+        </div>
+      ) : remainingEpics !== undefined || idealRemaining !== undefined ? (
         <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs text-gray-700 text-center">
           <div className="whitespace-nowrap">
             Remaining: {remainingEpics !== undefined ? remainingEpics : '-'}, Ideal: {idealRemaining !== undefined ? idealRemaining : '-'}
@@ -60,10 +65,42 @@ function MetricCard({ title, tooltip, value, loading, icon, color, remainingEpic
       ) : null}
 
       {/* Metric Value Area */}
-      <div className="flex-1 flex items-center justify-center pt-6">
+      <div className="flex-1 flex items-center justify-center pt-4">
         {loading ? (
           <div className="animate-pulse">
             <div className="h-8 w-16 bg-gray-200 rounded"></div>
+          </div>
+        ) : dependencies && dependencies.length > 0 ? (
+          <div className="w-full mt-3">
+            <table className="w-full text-xs border border-gray-300 table-fixed">
+              <colgroup>
+                <col className="w-[72%]" />
+                <col className="w-[28%]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-gray-300 bg-gray-50">
+                  <th className="text-left py-0.5 px-1 font-semibold text-gray-700 border-r border-gray-300">Team</th>
+                  <th className="text-center py-0.5 px-1 font-semibold text-gray-700" title="Uncompleted Dependencies">
+                    <div className="leading-tight">
+                      <div>Uncom.</div>
+                      <div>Dep.</div>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {dependencies.map((dep, idx) => (
+                  <tr key={idx} className="border-b border-gray-300 last:border-b-0">
+                    <td className="py-1 px-1.5 text-gray-700 truncate border-r border-gray-300 overflow-hidden" title={dep.team}>
+                      {dep.team}
+                    </td>
+                    <td className="py-1 px-1.5 text-gray-600 text-center">
+                      {dep.uncompletedIssues}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className={`text-xl font-bold ${getColorClass()}`}>
@@ -73,8 +110,8 @@ function MetricCard({ title, tooltip, value, loading, icon, color, remainingEpic
       </div>
 
       {/* Title at bottom */}
-      <div className="mt-auto pt-2 w-full">
-        <h3 className="text-[0.65rem] font-semibold text-gray-700 text-center">{title}</h3>
+      <div className="mt-auto pt-1 pb-1 w-full">
+        <h3 className="text-xs font-semibold text-gray-700 text-center">{title}</h3>
       </div>
     </div>
   );
@@ -93,6 +130,10 @@ export default function PIMetricsPage() {
     inProgressPercentage?: number;
     inProgressCount?: number;
     inProgressStatus?: 'red' | 'yellow' | 'green';
+  }>({});
+  const [dependenciesData, setDependenciesData] = useState<{
+    outbound?: Array<{ team: string; uncompletedIssues: number }>;
+    inbound?: Array<{ team: string; uncompletedIssues: number }>;
   }>({});
   const [selectedPI, setSelectedPI] = useState<string>('Q42025');
   const [availablePIs, setAvailablePIs] = useState<string[]>([]);
@@ -186,7 +227,30 @@ export default function PIMetricsPage() {
       }
     };
 
+    const fetchDependencies = async () => {
+      try {
+        const response = await apiService.getTopDependenciesSummary(selectedPI);
+        if (response.success && response.data) {
+          const outbound = response.data.top_outbound_dependencies.map(dep => ({
+            team: dep.owned_team,
+            uncompletedIssues: dep.uncompleted_issues
+          }));
+          const inbound = response.data.top_inbound_dependencies.map(dep => ({
+            team: dep.assignee_team,
+            uncompletedIssues: dep.uncompleted_issues
+          }));
+          setDependenciesData({ outbound, inbound });
+        } else {
+          setDependenciesData({});
+        }
+      } catch (err) {
+        console.error('Failed to fetch dependencies data:', err);
+        setDependenciesData({});
+      }
+    };
+
     fetchPIStatus();
+    fetchDependencies();
   }, [selectedPI]);
 
   const metrics = [
@@ -200,24 +264,40 @@ export default function PIMetricsPage() {
         : undefined,
       color: epicClosureData.color,
       icon: '📉',
-    },
-    {
-      title: 'Dependencies',
-      tooltip: 'Top three teams with the most dependencies in the PI',
-      value: undefined,
-      icon: '🔗',
+      dependencies: undefined,
     },
     {
       title: 'Average Epic Cycle Time',
       tooltip: 'Average cycle time of EPIC in the last three PIs',
       value: undefined,
       icon: '⏱️',
+      dependencies: undefined,
     },
     {
-      title: 'PI Predictability',
-      tooltip: 'Average PI predictability in the last three PIs',
+      title: (
+        <>
+          <span className="font-bold">Outbound</span> Dependencies
+        </>
+      ),
+      tooltip: dependenciesData.outbound && dependenciesData.outbound.length > 0
+        ? `Top teams: ${dependenciesData.outbound.map(d => `${d.team} (${d.uncompletedIssues} uncompleted)`).join(', ')}`
+        : 'Top three teams with the most outbound dependencies in the PI',
       value: undefined,
-      icon: '📊',
+      icon: '🔗',
+      dependencies: dependenciesData.outbound,
+    },
+    {
+      title: (
+        <>
+          <span className="font-bold">Inbound</span> Dependencies
+        </>
+      ),
+      tooltip: dependenciesData.inbound && dependenciesData.inbound.length > 0
+        ? `Top teams: ${dependenciesData.inbound.map(d => `${d.team} (${d.uncompletedIssues} uncompleted)`).join(', ')}`
+        : 'Top three teams with the most inbound dependencies in the PI',
+      value: undefined,
+      icon: '🔗',
+      dependencies: dependenciesData.inbound,
     },
     {
       title: 'In Progress Epics',
@@ -229,6 +309,7 @@ export default function PIMetricsPage() {
         : undefined,
       color: epicClosureData.inProgressStatus,
       icon: '🚀',
+      dependencies: undefined,
     },
   ];
 
@@ -296,9 +377,26 @@ export default function PIMetricsPage() {
         } else {
           setEpicClosureData({});
         }
+
+        // Fetch dependencies data
+        const depsResponse = await apiService.getTopDependenciesSummary(piName);
+        if (depsResponse.success && depsResponse.data) {
+          const outbound = depsResponse.data.top_outbound_dependencies.map(dep => ({
+            team: dep.owned_team,
+            uncompletedIssues: dep.uncompleted_issues
+          }));
+          const inbound = depsResponse.data.top_inbound_dependencies.map(dep => ({
+            team: dep.assignee_team,
+            uncompletedIssues: dep.uncompleted_issues
+          }));
+          setDependenciesData({ outbound, inbound });
+        } else {
+          setDependenciesData({});
+        }
       } catch (err) {
         console.error('Failed to fetch data:', err);
         setEpicClosureData({});
+        setDependenciesData({});
       } finally {
         setLoading(false);
       }
@@ -371,6 +469,7 @@ export default function PIMetricsPage() {
               idealRemaining={index === 0 ? epicClosureData.idealRemaining : undefined}
               totalEpics={index === 4 ? epicClosureData.totalEpics : undefined}
               inProgressPercentage={index === 4 ? epicClosureData.inProgressPercentage : undefined}
+              dependencies={metric.dependencies}
             />
           ))}
         </div>

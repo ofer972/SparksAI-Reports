@@ -31,7 +31,8 @@ import {
   ActiveSprintSummaryResponse,
   InsightTypesResponse,
   InsightType,
-  CreateJobResponse
+  CreateJobResponse,
+  TopDependenciesSummaryResponse
 } from './config';
 
 // Re-export types for convenience
@@ -621,6 +622,27 @@ export class ApiService {
     }
     
     throw new Error(result.message || 'Failed to fetch epic inbound dependency load');
+  }
+
+  // Top Dependencies Summary API
+  async getTopDependenciesSummary(pi: string, teamName?: string, isGroup: boolean = false): Promise<TopDependenciesSummaryResponse> {
+    const params = new URLSearchParams();
+    params.append('pi', pi);
+    
+    if (teamName) {
+      params.append('team_name', teamName);
+    }
+    
+    params.append('isGroup', isGroup.toString());
+    
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.pis.getTopDependenciesSummary)}?${params}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch top dependencies summary: ${response.statusText}`);
+    }
+
+    return response.json();
   }
 
   // AI Chat API
