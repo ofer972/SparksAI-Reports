@@ -306,11 +306,18 @@ export class ApiService {
     return result.data;
   }
 
-  async getClosedSprints(teamName: string, months: number = 3): Promise<ClosedSprintsResponse> {
+  async getClosedSprints(teamName?: string, months: number = 3, isGroup: boolean = false): Promise<ClosedSprintsResponse> {
     const params = new URLSearchParams({
-      team_name: teamName,
       months: months.toString(),
     });
+    
+    if (teamName) {
+      params.append('team_name', teamName);
+    }
+    
+    if (isGroup) {
+      params.append('isGroup', 'true');
+    }
 
     const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.teamMetrics.closedSprints)}?${params}`);
     
@@ -886,6 +893,7 @@ export class BurndownApiService {
     return this.apiService.getBurndownData(teamName, issueType, sprintName);
   }
 }
+
 
 
 

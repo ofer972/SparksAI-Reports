@@ -10,6 +10,8 @@ import TeamDependencyGraphPage from '@/components/team-dependency-graph/TeamDepe
 import DirectAISQLChatPage from '@/components/direct-ai-sql-chat/DirectAISQLChatPage';
 import ActiveSprintReportPage from '@/components/active-sprint-report/ActiveSprintReportPage';
 import CreateAgentJobsPage from '@/components/create-agent-jobs/CreateAgentJobsPage';
+import EpicScopeChangesPage from '@/components/epic-scope-changes/EpicScopeChangesPage';
+import TeamVelocityChartAdvanced from '@/components/team-velocity-chart-advanced/TeamVelocityChartAdvanced';
 
 export default function Home() {
   const router = useRouter();
@@ -29,6 +31,8 @@ export default function Home() {
     { id: 'report-three', label: 'Sprint Predictability', icon: '📉' },
     { id: 'report-four', label: 'Release Predictability and Status', icon: '🚀' },
     { id: 'report-six', label: 'PI Metrics', icon: '📋' },
+    { id: 'epic-scope-changes', label: 'Epic Scope Changes', icon: '📈' },
+    { id: 'team-velocity-chart', label: 'Team Velocity Chart (Advanced)', icon: '📊' },
     { id: 'dependency-graph', label: 'Dependency Graph', icon: '🕸️' },
     { id: 'direct-ai-sql-chat', label: 'Direct AI SQL Chat', icon: '💬' },
     { id: 'create-agent-jobs', label: 'Create Agent Jobs', icon: '⚙️' },
@@ -44,6 +48,10 @@ export default function Home() {
         return <ReleasePredictabilityPage />;
       case 'report-six':
         return <PIMetricsPage />;
+      case 'epic-scope-changes':
+        return <EpicScopeChangesPage />;
+      case 'team-velocity-chart':
+        return <TeamVelocityChartAdvanced />;
       case 'active-sprint-report':
         return <ActiveSprintReportPage />;
       case 'dependency-graph':
@@ -215,6 +223,7 @@ export default function Home() {
     </div>
   );
 }
+
 
 
 

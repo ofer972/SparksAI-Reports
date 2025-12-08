@@ -293,24 +293,31 @@ export interface CompletionRate {
 export interface ClosedSprint {
   sprint_id: number;
   sprint_name: string;
-  start_date: string;
-  end_date: string;
+  team_name: string;
   sprint_goal: string;
-  completion_percentage: number;
-  issues_planned: number;
+  start_date: string;
+  complete_date: string;
+  issues_at_start: number;
   issues_added: number;
+  issues_removed: number;
   issues_done: number;
-  issues_remaining: number;
-  velocity: number;
-  predictability: number;
-  cycle_time: number;
+  issues_not_completed: number;
+  completed_percentage: number;
+  issues_at_start_keys: string[];
+  issues_added_keys: string[];
+  issues_removed_keys: string[];
+  completed_issue_keys: string[];
+  issues_not_completed_keys: string[];
 }
 
 export interface ClosedSprintsResponse {
-  closed_sprints: ClosedSprint[];
-  count: number;
+  months: number;
+  closed_sprints_by_team: {
+    [teamName: string]: ClosedSprint[];
+  };
+  total_sprints: number;
+  teams_count: number;
   team_name: string;
-  months_looked_back: number;
 }
 
 export interface IssuesTrendDataPoint {
@@ -344,6 +351,9 @@ export interface ScopeChangesDataPoint {
   'Stack Group': string;
   'Metric Name': string;
   Value: number;
+  'Issue Keys'?: string | string[];
+  issue_keys?: string | string[];
+  issueKeys?: string | string[];
 }
 
 export interface ScopeChangesResponse {
@@ -533,6 +543,7 @@ export interface AverageEpicCycleTimeResponse {
   };
   message: string;
 }
+
 
 
 
