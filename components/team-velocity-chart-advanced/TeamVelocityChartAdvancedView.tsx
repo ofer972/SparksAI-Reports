@@ -94,8 +94,8 @@ const TeamVelocityChartAdvancedView: React.FC<TeamVelocityChartAdvancedViewProps
       const issuesAtStart = (sprint as any).issues_at_start ?? 0;
       const issuesAdded = (sprint as any).issues_added ?? 0;
       const issuesRemoved = (sprint as any).issues_removed ?? 0;
-      const issuesDone = (sprint as any).issues_done ?? sprint.issues_completed_in_sprint ?? 0;
-      const issuesNotCompleted = (sprint as any).issues_not_completed ?? sprint.issues_not_completed ?? 0;
+      const issuesDone = (sprint as any).issues_done ?? (sprint as any).issues_completed_in_sprint ?? 0;
+      const issuesNotCompleted = (sprint as any).issues_not_completed ?? (sprint as any).issues_not_completed ?? 0;
 
       // Get issue keys (handle both old and new field names)
       const issuesAtStartKeys = (sprint as any).issues_at_start_keys ?? [];
