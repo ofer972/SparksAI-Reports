@@ -464,3 +464,4 @@ export default function StackedGroupedBarChart({
     </div>
   );
 }
+

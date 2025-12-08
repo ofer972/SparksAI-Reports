@@ -27,3 +27,4 @@ echo Done! Check git status:
 git status --short
 
 pause
+

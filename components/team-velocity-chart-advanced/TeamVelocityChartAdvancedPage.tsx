@@ -2,27 +2,28 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ApiService } from '@/lib/api';
-import { ActiveSprintSummaryItem } from '@/lib/config';
-import ActiveSprintReportView from './ActiveSprintReportView';
+import { ClosedSprint } from '@/lib/config';
+import TeamVelocityChartAdvancedView from './TeamVelocityChartAdvancedView';
 
-interface ActiveSprintReportPageProps {
+interface TeamVelocityChartAdvancedPageProps {
   selectedTreeValue?: string | null;
   selectedTreeLabel?: string;
   selectedTreeType?: 'group' | 'team';
   onTreeSelect?: (value: string | null, label: string, type: 'group' | 'team') => void;
 }
 
-export default function ActiveSprintReportPage({
+export default function TeamVelocityChartAdvancedPage({
   selectedTreeValue,
   selectedTreeLabel,
   selectedTreeType,
   onTreeSelect,
-}: ActiveSprintReportPageProps) {
-  const [data, setData] = useState<ActiveSprintSummaryItem[]>([]);
+}: TeamVelocityChartAdvancedPageProps) {
+  const [data, setData] = useState<ClosedSprint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<Record<string, any>>({
     team_name: '',
+    months: 3,
     isGroup: false,
   });
 
@@ -48,26 +49,36 @@ export default function ActiveSprintReportPage({
 
   const fetchData = useCallback(async () => {
     const teamName = filters.team_name as string;
+    const months = Number(filters.months ?? 3);
     const isGroup = (filters.isGroup as boolean) ?? false;
+
+    if (!teamName) {
+      setData([]);
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const result = await apiService.getActiveSprintSummaryByTeam(
-        teamName || undefined,
-        isGroup
-      );
-      setData(result);
+      const result = await apiService.getClosedSprints(teamName, months, isGroup);
+
+      // Extract sprints for the selected team
+      if (result.closed_sprints_by_team && result.closed_sprints_by_team[teamName]) {
+        setData(result.closed_sprints_by_team[teamName]);
+      } else {
+        setData([]);
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch active sprint summary data';
-      setError(errorMessage);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch closed sprints data';
+      setError(`${errorMessage}. Check browser console for details.`);
       setData([]);
+
       if (process.env.NODE_ENV === 'development') {
-        console.error('Active Sprint Summary API Error:', {
+        console.error('Closed Sprints API Error:', {
           error: err,
-          endpoint: '/api/v1/sprints/active-sprint-summary-by-team',
           teamName,
+          months,
           isGroup
         });
       }
@@ -90,7 +101,7 @@ export default function ActiveSprintReportPage({
 
   return (
     <div className="h-full flex flex-col p-4">
-      <ActiveSprintReportView
+      <TeamVelocityChartAdvancedView
         data={data}
         loading={loading}
         error={error}
@@ -103,4 +114,3 @@ export default function ActiveSprintReportPage({
     </div>
   );
 }
-

@@ -12,11 +12,13 @@ import ActiveSprintReportPage from '@/components/active-sprint-report/ActiveSpri
 import CreateAgentJobsPage from '@/components/create-agent-jobs/CreateAgentJobsPage';
 import EpicScopeChangesPage from '@/components/epic-scope-changes/EpicScopeChangesPage';
 import TeamVelocityChartAdvanced from '@/components/team-velocity-chart-advanced/TeamVelocityChartAdvanced';
+import TeamVelocityChartAdvancedPage from '@/components/team-velocity-chart-advanced/TeamVelocityChartAdvancedPage';
+import TreeSelect from '@/components/TreeSelect';
 
 export default function Home() {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
-  
+
   useEffect(() => {
     setAuthChecked(true);
   }, []);
@@ -24,6 +26,9 @@ export default function Home() {
   const [activeNavItem, setActiveNavItem] = useState('active-sprint-report');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [selectedTreeValue, setSelectedTreeValue] = useState<string | null>(null);
+  const [selectedTreeLabel, setSelectedTreeLabel] = useState<string>('');
+  const [selectedTreeType, setSelectedTreeType] = useState<'group' | 'team'>('team');
 
   const navigationItems = [
     { id: 'active-sprint-report', label: 'Active Sprint Summary by team', icon: '🏃' },
@@ -33,6 +38,7 @@ export default function Home() {
     { id: 'report-six', label: 'PI Metrics', icon: '📋' },
     { id: 'epic-scope-changes', label: 'Epic Scope Changes', icon: '📈' },
     { id: 'team-velocity-chart', label: 'Team Velocity Chart (Advanced)', icon: '📊' },
+    { id: 'team-velocity-chart-advanced', label: 'Reports - Team Velocity Advanced', icon: '📊' },
     { id: 'dependency-graph', label: 'Dependency Graph', icon: '🕸️' },
     { id: 'direct-ai-sql-chat', label: 'Direct AI SQL Chat', icon: '💬' },
     { id: 'create-agent-jobs', label: 'Create Agent Jobs', icon: '⚙️' },
@@ -52,8 +58,32 @@ export default function Home() {
         return <EpicScopeChangesPage />;
       case 'team-velocity-chart':
         return <TeamVelocityChartAdvanced />;
+      case 'team-velocity-chart-advanced':
+        return (
+          <TeamVelocityChartAdvancedPage
+            selectedTreeValue={selectedTreeValue}
+            selectedTreeLabel={selectedTreeLabel}
+            selectedTreeType={selectedTreeType}
+            onTreeSelect={(value, label, type) => {
+              setSelectedTreeValue(value);
+              setSelectedTreeLabel(label);
+              setSelectedTreeType(type);
+            }}
+          />
+        );
       case 'active-sprint-report':
-        return <ActiveSprintReportPage />;
+        return (
+          <ActiveSprintReportPage
+            selectedTreeValue={selectedTreeValue}
+            selectedTreeLabel={selectedTreeLabel}
+            selectedTreeType={selectedTreeType}
+            onTreeSelect={(value, label, type) => {
+              setSelectedTreeValue(value);
+              setSelectedTreeLabel(label);
+              setSelectedTreeType(type);
+            }}
+          />
+        );
       case 'dependency-graph':
         return <TeamDependencyGraphPage />;
       case 'direct-ai-sql-chat':
@@ -123,7 +153,7 @@ export default function Home() {
               Report Collection
             </h2>
           </div>
-          
+
           <nav className="flex-1 overflow-y-auto">
             {sidebarCollapsed ? (
               <div className="space-y-1">
@@ -164,7 +194,7 @@ export default function Home() {
           </nav>
 
           <div className="mt-auto pt-2 border-t border-gray-200">
-            <button 
+            <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="w-full text-gray-500 hover:text-gray-700 p-2 rounded hover:bg-gray-100 flex items-center justify-center"
               title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -201,7 +231,22 @@ export default function Home() {
                 Report Collection
               </h1>
             </div>
-            
+
+            {/* Center: Tree Selector (only for team-velocity-chart-advanced and active-sprint-report) */}
+            {(activeNavItem === 'team-velocity-chart-advanced' || activeNavItem === 'active-sprint-report') && (
+              <div className="hidden md:block" style={{ minWidth: '200px', maxWidth: '300px' }}>
+                <TreeSelect
+                  selectedValue={selectedTreeValue}
+                  onSelect={(value, label, type) => {
+                    setSelectedTreeValue(value);
+                    setSelectedTreeLabel(label);
+                    setSelectedTreeType(type);
+                  }}
+                  placeholder="Select team or group"
+                />
+              </div>
+            )}
+
             {/* Right side: user info */}
             <div className="flex items-center space-x-2 md:space-x-4 flex-1 justify-end">
               <div className="flex items-center space-x-3 text-sm text-gray-700">
