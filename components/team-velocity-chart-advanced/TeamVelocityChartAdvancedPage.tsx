@@ -63,9 +63,16 @@ export default function TeamVelocityChartAdvancedPage({
     try {
       const result = await apiService.getClosedSprints(teamName, months, isGroup);
 
-      // Extract sprints for the selected team
-      if (result.closed_sprints_by_team && result.closed_sprints_by_team[teamName]) {
-        setData(result.closed_sprints_by_team[teamName]);
+      // Simply aggregate all sprints from whatever the backend returns
+      // Backend handles group/team logic and returns appropriate data structure
+      if (result.closed_sprints_by_team) {
+        const allSprints: ClosedSprint[] = [];
+        Object.values(result.closed_sprints_by_team).forEach((teamSprints) => {
+          if (Array.isArray(teamSprints)) {
+            allSprints.push(...teamSprints);
+          }
+        });
+        setData(allSprints);
       } else {
         setData([]);
       }
