@@ -7,6 +7,9 @@ import {
   LinearScale,
   BarElement,
   BarController,
+  LineElement,
+  LineController,
+  PointElement,
   Title,
   Tooltip,
   Legend,
@@ -21,9 +24,13 @@ ChartJS.register(
   LinearScale,
   BarElement,
   BarController,
+  LineElement,
+  LineController,
+  PointElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ChartDataLabels // Register the datalabels plugin
 );
 
 export interface StackedGroupedBarChartData {
@@ -46,6 +53,7 @@ export interface StackedGroupedBarChartProps {
   height?: string;
   loading?: boolean;
   error?: string | null;
+  averageVelocity?: number | null;
 }
 
 export default function StackedGroupedBarChart({
@@ -57,22 +65,23 @@ export default function StackedGroupedBarChart({
   defaultColors = ['#0066cc', '#800080', '#00ff00', '#ff8c00', '#00ffff', '#ff0000', '#ffc0cb', '#808080'],
   height = '100%',
   loading = false,
-  error = null
+  error = null,
+  averageVelocity = null
 }: StackedGroupedBarChartProps) {
-  
+
   const chartRef = useRef<ChartJS>(null);
 
   // Create lookup map for issue_keys: (quarter, metricName) -> issue_keys[]
   const issueKeysMap = useMemo(() => {
     const map = new Map<string, string[]>();
-    
+
     data.forEach((item) => {
       if (item.issueKeys && Array.isArray(item.issueKeys) && item.issueKeys.length > 0) {
         const key = `${item.quarter}|||${item.metricName}`;
         map.set(key, item.issueKeys);
       }
     });
-    
+
     return map;
   }, [data]);
 
@@ -90,7 +99,7 @@ export default function StackedGroupedBarChart({
       }
     });
     const stackGroups = Array.from(new Set(data.map(d => d.stackGroup))).sort();
-    
+
     // Define metric order for proper stacking
     const metricOrder = [
       'Issues Planned',
@@ -124,7 +133,7 @@ export default function StackedGroupedBarChart({
     // Create datasets for each metric
     const datasets = metrics.map((metric, index) => {
       const color = colorScheme[metric] || defaultColors[index % defaultColors.length];
-      
+
       return {
         label: metric,
         data: quarters.map(quarter => {
@@ -135,26 +144,48 @@ export default function StackedGroupedBarChart({
         borderColor: color,
         borderWidth: 1,
         stack: stackGroupMap[metric] || 'Unknown',
+        order: 1, // Bars have higher order (rendered first, below line)
       };
     });
+
+    // Add average velocity line if provided (add it last so it renders on top)
+    if (averageVelocity !== null && averageVelocity !== undefined && averageVelocity > 0 && quarters.length > 0) {
+      datasets.push({
+        type: 'line' as const,
+        label: `Average Velocity: ${averageVelocity.toFixed(1)}`,
+        data: quarters.map(() => averageVelocity),
+        borderColor: '#000000',
+        backgroundColor: '#000000',
+        borderWidth: 2, // Thinner line
+        borderDash: [5, 5], // Dashed line pattern
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        pointHoverBorderWidth: 0,
+        fill: false,
+        tension: 0,
+        order: -1, // Draw line on top (lower order = higher z-index)
+        yAxisID: 'y',
+        z: 10, // Additional z-index to ensure it's on top
+      } as any);
+    }
 
     return {
       labels: quarters,
       datasets,
     };
-  }, [data, colorScheme, defaultColors]);
+  }, [data, colorScheme, defaultColors, averageVelocity]);
 
   // Build Jira search URL with issue keys
   const buildJiraUrl = (issueKeys: string[]): string => {
     if (!issueKeys || issueKeys.length === 0) return '';
-    
+
     const jiraUrl = getCleanJiraUrl();
-    
+
     if (!jiraUrl) {
       alert('Jira URL is not configured. Contact admin.');
       return '';
     }
-    
+
     // Format: key IN (KEY1, KEY2, KEY3)
     const jql = `key IN (${issueKeys.join(', ')})`;
     const encodedJql = encodeURIComponent(jql);
@@ -164,8 +195,11 @@ export default function StackedGroupedBarChart({
   const options = useMemo(() => {
     if (!chartData) return {};
 
-    // Calculate max value for Y-axis
-    const maxValue = Math.max(...chartData.datasets.flatMap(dataset => dataset.data as number[]));
+    // Calculate max value for Y-axis (including average velocity line)
+    const maxValue = Math.max(
+      ...chartData.datasets.flatMap(dataset => dataset.data as number[]),
+      averageVelocity || 0
+    );
     const suggestedMax = Math.ceil(maxValue * 1.4); // Increased to 1.4 for 3 more ticks after bars
 
     return {
@@ -187,7 +221,7 @@ export default function StackedGroupedBarChart({
 
         // Use Chart.js built-in method to get the nearest element at click position
         const elements = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
-        
+
         if (!elements || elements.length === 0) {
           return;
         }
@@ -196,16 +230,24 @@ export default function StackedGroupedBarChart({
         const clickedElement = elements[0];
         const datasetIndex = clickedElement.datasetIndex;
         const dataIndex = clickedElement.index;
-        
+
+        // Get the dataset to check if it's the line (average velocity)
+        const clickedDataset = chartData.datasets[datasetIndex] as any;
+
+        // Ignore clicks on the average velocity line
+        if (clickedDataset?.type === 'line') {
+          return;
+        }
+
         // Get the metric name from the dataset - this identifies the specific bar segment
-        const metricName = chartData.datasets[datasetIndex]?.label || '';
+        const metricName = clickedDataset?.label || '';
         // Get the quarter from the label
         const quarter = chartData.labels[dataIndex] || '';
-        
+
         // Look up issue_keys for this SPECIFIC data point (quarter + metric combination)
         const mapKey = `${quarter}|||${metricName}`;
         const issueKeys = issueKeysMap.get(mapKey);
-        
+
         if (issueKeys && issueKeys.length > 0) {
           const jiraUrl = buildJiraUrl(issueKeys);
           if (jiraUrl) {
@@ -216,17 +258,25 @@ export default function StackedGroupedBarChart({
       onHover: (event: any, activeElements: any[]) => {
         const canvas = event.native?.target as HTMLCanvasElement;
         if (!canvas) return;
-        
+
         if (activeElements.length > 0) {
           const clickedElement = activeElements[0];
           const datasetIndex = clickedElement.datasetIndex;
           const dataIndex = clickedElement.index;
-          
-          const metricName = chartData.datasets[datasetIndex].label || '';
+
+          const clickedDataset = chartData.datasets[datasetIndex] as any;
+
+          // Don't show pointer cursor for the average velocity line
+          if (clickedDataset?.type === 'line') {
+            canvas.style.cursor = 'default';
+            return;
+          }
+
+          const metricName = clickedDataset?.label || '';
           const quarter = chartData.labels[dataIndex] || '';
           const mapKey = `${quarter}|||${metricName}`;
           const issueKeys = issueKeysMap.get(mapKey);
-          
+
           // Change cursor to pointer if issue_keys exist
           if (issueKeys && issueKeys.length > 0) {
             canvas.style.cursor = 'pointer';
@@ -288,17 +338,72 @@ export default function StackedGroupedBarChart({
           },
         },
         datalabels: {
-          display: true,
-          color: '#000',
-          font: {
-            size: 14,
-            weight: 'bold' as const,
+          display: true, // Enable labels by default
+          color: function(context: any) {
+            const dataset = context.dataset;
+            // Black color for average velocity line
+            if (dataset.type === 'line') {
+              return '#000000';
+            }
+            // White text for bars for better visibility
+            return '#ffffff';
           },
-          formatter: function(value: number) {
-            return value > 0 ? value : '';
+          font: function(context: any) {
+            const dataset = context.dataset;
+            if (dataset.type === 'line') {
+              return {
+                size: 13,
+                weight: 'bold' as const,
+              };
+            }
+            return {
+              size: 11,
+              weight: 'bold' as const,
+            };
           },
-          anchor: 'center' as const,
-          align: 'center' as const,
+          formatter: function(value: number, context: any) {
+            // Safety check
+            if (value === undefined || value === null || isNaN(value) || value === 0) {
+              return '';
+            }
+
+            const dataset = context.dataset;
+            // For average velocity line, show just the value
+            if (dataset.type === 'line') {
+              return value.toFixed(1);
+            }
+            // For bars, show value
+            return value.toString();
+          },
+          anchor: function(context: any) {
+            const dataset = context.dataset;
+            // For line, use 'end' to anchor at the top of the data point
+            if (dataset.type === 'line') {
+              return 'end' as const;
+            }
+            // For bars, center in the middle of the segment
+            return 'center' as const;
+          },
+          align: function(context: any) {
+            const dataset = context.dataset;
+            // For line, align label's top edge above the point
+            if (dataset.type === 'line') {
+              return 'end' as const;
+            }
+            // For bars, center align in the middle
+            return 'center' as const;
+          },
+          offset: function(context: any) {
+            const dataset = context.dataset;
+            // For line, no offset - label positioned at anchor point
+            if (dataset.type === 'line') {
+              return 0;
+            }
+            // For bars, no offset - centered in the middle of segment
+            return 0;
+          },
+          clamp: true, // Keep labels within chart area
+          clip: false, // Don't clip labels
         },
       },
       scales: {
@@ -343,7 +448,7 @@ export default function StackedGroupedBarChart({
         intersect: false,
       },
     };
-  }, [chartData, title, xAxisLabel, yAxisLabel, issueKeysMap]);
+  }, [chartData, title, xAxisLabel, yAxisLabel, issueKeysMap, averageVelocity]);
 
   // Add direct click handler as fallback
   // MUST be called before any early returns to follow Rules of Hooks
@@ -372,7 +477,7 @@ export default function StackedGroupedBarChart({
         try {
           // Use Chart.js built-in method to get the nearest element at click position
           const elements = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
-          
+
           if (!elements || elements.length === 0) {
             return;
           }
@@ -381,16 +486,24 @@ export default function StackedGroupedBarChart({
           const clickedElement = elements[0];
           const datasetIndex = clickedElement.datasetIndex;
           const dataIndex = clickedElement.index;
-          
+
+          // Get the dataset to check if it's the line (average velocity)
+          const clickedDataset = chartData.datasets[datasetIndex] as any;
+
+          // Ignore clicks on the average velocity line
+          if (clickedDataset?.type === 'line') {
+            return;
+          }
+
           // Get the metric name from the dataset - this identifies the specific bar segment
-          const metricName = chartData.datasets[datasetIndex]?.label || '';
+          const metricName = clickedDataset?.label || '';
           // Get the quarter from the label
           const quarter = chartData.labels[dataIndex] || '';
-          
+
           // Look up issue_keys for this SPECIFIC data point (quarter + metric combination)
           const mapKey = `${quarter}|||${metricName}`;
           const issueKeys = issueKeysMap.get(mapKey);
-          
+
           if (issueKeys && issueKeys.length > 0) {
             const jiraUrl = buildJiraUrl(issueKeys);
             if (jiraUrl) {
@@ -404,7 +517,7 @@ export default function StackedGroupedBarChart({
 
       // Use capture phase to catch clicks before plugins
       canvas.addEventListener('click', handleCanvasClick, true);
-      
+
       cleanup = () => {
         canvas?.removeEventListener('click', handleCanvasClick, true);
       };
@@ -454,10 +567,10 @@ export default function StackedGroupedBarChart({
 
   return (
     <div className="w-full h-full min-h-[350px]">
-      <Chart 
+      <Chart
         ref={chartRef}
-        type="bar" 
-        data={chartData} 
+        type="bar"
+        data={chartData}
         options={options}
         plugins={[ChartDataLabels]}
       />

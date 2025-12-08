@@ -15,7 +15,7 @@ export const getCleanJiraUrl = (): string => {
 export const API_CONFIG = {
   baseUrl: '/api', // Always use /api - Next.js rewrites handle backend routing
   version: process.env.NEXT_PUBLIC_API_VERSION || 'v1',
-  
+
   endpoints: {
     // Team endpoints
     teams: {
@@ -29,7 +29,7 @@ export const API_CONFIG = {
       addToGroup: '/teams',
       removeFromGroup: '/teams',
     },
-    
+
     // Groups endpoints (new structure: /api/v1/groups)
     groups: {
       getAll: '/groups',
@@ -39,13 +39,13 @@ export const API_CONFIG = {
       update: '/groups', // Will append /{groupId}
       delete: '/groups', // Will append /{groupId}
     },
-    
+
     // Team-Group assignment endpoints
     teamGroups: {
       batchAssign: '/teams/batch-assign',
       removeFromGroup: '/teams', // Will append /{teamId}/group
     },
-    
+
     // PI endpoints
     pis: {
       getPis: '/pis/getPis',
@@ -56,30 +56,31 @@ export const API_CONFIG = {
       getTopDependenciesSummary: '/pis/top-dependencies-summary',
       getAverageEpicCycleTime: '/pis/average-epic-cycle-time',
     },
-    
+
     // Burndown endpoints
     burndown: {
       sprintBurndown: '/team-metrics/sprint-burndown',
     },
-    
+
     // AI Cards endpoints
     aiCards: {
       getCards: '/team-ai-cards/getCards',
     },
-    
+
     // Recommendations endpoints
     recommendations: {
       getTop: '/recommendations/getTeamTop',
     },
-    
+
     // Team Metrics endpoints
     teamMetrics: {
       avgSprintMetrics: '/team-metrics/get-avg-sprint-metrics',
       currentSprintProgress: '/team-metrics/current-sprint-progress',
       closedSprints: '/team-metrics/closed-sprints',
+      sprintVelocityAdvanced: '/team-metrics/sprint-velocity-advanced',
       issuesTrend: '/team-metrics/issues-trend',
     },
-    
+
     // General Data endpoints
     generalData: {
       agentJobs: '/agent-jobs',
@@ -90,12 +91,12 @@ export const API_CONFIG = {
       createPiJob: '/agent-jobs/create-pi-job',
       createPiJobForTeam: '/agent-jobs/create-pi-job-for-team',
     },
-    
+
     // Insight Types endpoints
     insightTypes: {
       getAll: '/insight-types',
     },
-    
+
     // Transcript Upload endpoints
     transcripts: {
       uploadTeam: '/transcripts/upload-team',
@@ -113,7 +114,7 @@ export const API_CONFIG = {
     users: {
       getCurrentUser: '/users/get-current-user',
     },
-    
+
     // Issues endpoints
     issues: {
       epicsHierarchy: '/issues/epics-hierarchy',
@@ -122,13 +123,13 @@ export const API_CONFIG = {
       epicOutboundDependencyLoadByQuarter: '/issues/epic-outbound-dependency-metrics-by-quarter',
       epicInboundDependencyLoadByQuarter: '/issues/epic-inbound-dependency-load-by-quarter',
     },
-    
+
     // Sprints endpoints
     sprints: {
       sprintPredictability: '/sprints/sprint-predictability',
       activeSprintSummaryByTeam: '/sprints/active-sprint-summary-by-team',
     },
-    
+
   },
 } as const;
 
@@ -137,20 +138,20 @@ export const API_CONFIG = {
  * Build URL for backend API endpoints
  * Always returns relative paths like /api/v1/{endpoint}
  * Next.js rewrites handle routing to the actual backend server
- * 
+ *
  * @param endpoint - Resource path (will be prefixed with /api/v1)
  * @returns Full URL: /api/v1/{endpoint}
- * 
+ *
  * @example
  * buildBackendUrl('/teams/getNames') → '/api/v1/teams/getNames'
  */
 export const buildBackendUrl = (endpoint: string): string => {
   const baseUrl = API_CONFIG.baseUrl;
   const version = API_CONFIG.version;
-  
+
   // Ensure endpoint starts with /
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  
+
   // Build versioned path: /api/v1/teams/getNames
   return `${baseUrl}/${version}${cleanEndpoint}`;
 };
@@ -318,6 +319,19 @@ export interface ClosedSprintsResponse {
   total_sprints: number;
   teams_count: number;
   team_name: string;
+}
+
+export interface SprintVelocityAdvancedResponse {
+  data: ClosedSprint[];
+  meta: {
+    months: number;
+    total_sprints: number;
+    teams_count: number;
+    average_velocity: number;
+    team_name?: string;
+    group_name?: string;
+    teams_in_group?: string[];
+  };
 }
 
 export interface IssuesTrendDataPoint {

@@ -21,9 +21,10 @@ export default function TeamVelocityChartAdvancedPage({
   const [data, setData] = useState<ClosedSprint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [averageVelocity, setAverageVelocity] = useState<number | null>(null);
   const [filters, setFilters] = useState<Record<string, any>>({
     team_name: '',
-    months: 3,
+    months: 2,
     isGroup: false,
   });
 
@@ -49,7 +50,7 @@ export default function TeamVelocityChartAdvancedPage({
 
   const fetchData = useCallback(async () => {
     const teamName = filters.team_name as string;
-    const months = Number(filters.months ?? 3);
+    const months = Number(filters.months ?? 2);
     const isGroup = (filters.isGroup as boolean) ?? false;
 
     if (!teamName) {
@@ -61,20 +62,15 @@ export default function TeamVelocityChartAdvancedPage({
     setError(null);
 
     try {
-      const result = await apiService.getClosedSprints(teamName, months, isGroup);
+      const result = await apiService.getSprintVelocityAdvanced(teamName, months, isGroup);
 
-      // Simply aggregate all sprints from whatever the backend returns
-      // Backend handles group/team logic and returns appropriate data structure
-      if (result.closed_sprints_by_team) {
-        const allSprints: ClosedSprint[] = [];
-        Object.values(result.closed_sprints_by_team).forEach((teamSprints) => {
-          if (Array.isArray(teamSprints)) {
-            allSprints.push(...teamSprints);
-          }
-        });
-        setData(allSprints);
+      // New endpoint returns data as array directly with meta
+      if (result.data && Array.isArray(result.data)) {
+        setData(result.data);
+        setAverageVelocity(result.meta?.average_velocity ?? null);
       } else {
         setData([]);
+        setAverageVelocity(null);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch closed sprints data';
@@ -115,7 +111,7 @@ export default function TeamVelocityChartAdvancedPage({
         filters={filters}
         setFilters={handleSetFilters}
         refresh={handleRefresh}
-        meta={null}
+        meta={{ averageVelocity }}
         componentProps={{}}
       />
     </div>

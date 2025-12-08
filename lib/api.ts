@@ -1,5 +1,5 @@
-import { 
-  API_CONFIG, 
+import {
+  API_CONFIG,
   buildBackendUrl,
   ApiResponse,
   User,
@@ -8,6 +8,7 @@ import {
   AICardsResponse,
   RecommendationsResponse,
   SprintMetrics,
+  SprintVelocityAdvancedResponse,
   CompletionRate,
   ClosedSprintsResponse,
   IssuesTrendResponse,
@@ -97,7 +98,7 @@ export class ApiService {
   // Teams API
   async getTeams(): Promise<TeamsResponse> {
     const response = await fetch(buildBackendUrl(API_CONFIG.endpoints.teams.getNames));
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch teams: ${response.statusText}`);
     }
@@ -109,7 +110,7 @@ export class ApiService {
   // PIs API
   async getPIs(): Promise<PIsResponse> {
     const response = await fetch(buildBackendUrl(API_CONFIG.endpoints.pis.getPis));
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch PIs: ${response.statusText}`);
     }
@@ -121,7 +122,7 @@ export class ApiService {
   // Groups API
   async getGroups(): Promise<{ groups: string[] }> {
     const response = await fetch(buildBackendUrl(API_CONFIG.endpoints.groups.getHierarchy));
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch groups: ${response.statusText}`);
     }
@@ -132,7 +133,7 @@ export class ApiService {
       const groupNames = result.data.groups.map((g: any) => g.name || g.group_name);
       return { groups: groupNames };
     }
-    
+
     return { groups: [] };
   }
 
@@ -143,13 +144,13 @@ export class ApiService {
     });
 
     const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.pis.getPIStatusForToday)}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch PI status for today: ${response.statusText}`);
     }
 
     const result: ApiResponse<PIStatusForTodayItem[]> = await response.json();
-    
+
     if (result.success && result.data) {
       // result.data is an array of PIStatusForTodayItem
       // Wrap it in PIStatusForTodayResponse structure
@@ -160,7 +161,7 @@ export class ApiService {
       };
       return responseData;
     }
-    
+
     return { data: [], count: 0, message: '' };
   }
 
@@ -180,7 +181,7 @@ export class ApiService {
     }
 
     const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.burndown.sprintBurndown)}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch burndown data: ${response.statusText}`);
     }
@@ -208,9 +209,9 @@ export class ApiService {
     }
 
     const url = `${buildBackendUrl(API_CONFIG.endpoints.pis.getBurndown)}?${params}`;
-    
+
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Failed to fetch PI burndown data: ${response.statusText}`);
@@ -226,7 +227,7 @@ export class ApiService {
     });
 
     const response = await fetch(`${buildBackendUrl('/team-ai-cards/getTopCards')}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch AI cards: ${response.statusText}`);
     }
@@ -242,7 +243,7 @@ export class ApiService {
     });
 
     const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.recommendations.getTop)}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch recommendations: ${response.statusText}`);
     }
@@ -258,7 +259,7 @@ export class ApiService {
     });
 
     const response = await fetch(`${buildBackendUrl('/pi-ai-cards/getTopCards')}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch PI AI cards: ${response.statusText}`);
     }
@@ -274,7 +275,7 @@ export class ApiService {
     });
 
     const response = await fetch(`${buildBackendUrl('/recommendations/getPITop')}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch PI recommendations: ${response.statusText}`);
     }
@@ -286,7 +287,7 @@ export class ApiService {
   // Team Metrics APIs
   async getSprintMetrics(teamName: string): Promise<SprintMetrics> {
     const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.teamMetrics.avgSprintMetrics)}?team_name=${teamName}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch sprint metrics: ${response.statusText}`);
     }
@@ -297,7 +298,7 @@ export class ApiService {
 
   async getCompletionRate(teamName: string): Promise<CompletionRate> {
     const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.teamMetrics.currentSprintProgress)}?team_name=${teamName}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch completion rate: ${response.statusText}`);
     }
@@ -310,23 +311,63 @@ export class ApiService {
     const params = new URLSearchParams({
       months: months.toString(),
     });
-    
+
     if (teamName) {
       params.append('team_name', teamName);
     }
-    
+
     if (isGroup) {
       params.append('isGroup', 'true');
     }
 
     const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.teamMetrics.closedSprints)}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch closed sprints: ${response.statusText}`);
     }
 
     const result: ApiResponse<ClosedSprintsResponse> = await response.json();
     return result.data;
+  }
+
+  async getSprintVelocityAdvanced(teamName?: string, months: number = 3, isGroup: boolean = false): Promise<SprintVelocityAdvancedResponse> {
+    const params = new URLSearchParams({
+      months: months.toString(),
+    });
+
+    if (teamName) {
+      params.append('team_name', teamName);
+    }
+
+    if (isGroup) {
+      params.append('isGroup', 'true');
+    }
+
+    const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.teamMetrics.sprintVelocityAdvanced)}?${params}`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sprint velocity advanced: ${response.statusText}`);
+    }
+
+    const result: any = await response.json();
+
+    // Handle response structure: { success: true, data: [...], meta: {...} }
+    if (result.success) {
+      return {
+        data: Array.isArray(result.data) ? result.data : [],
+        meta: result.meta || {},
+      };
+    }
+
+    // Fallback if structure is different
+    if (result.data && Array.isArray(result.data)) {
+      return {
+        data: result.data,
+        meta: result.meta || {},
+      };
+    }
+
+    throw new Error('Invalid response structure from sprint velocity advanced endpoint');
   }
 
   async getIssuesTrend(
@@ -341,7 +382,7 @@ export class ApiService {
     });
 
     const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.teamMetrics.issuesTrend)}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch issues trend data: ${response.statusText}`);
     }
@@ -353,7 +394,7 @@ export class ApiService {
   // Scope Changes API
   async getScopeChanges(quarter: string | string[]): Promise<ScopeChangesResponse> {
     const params = new URLSearchParams();
-    
+
     if (Array.isArray(quarter)) {
       quarter.forEach(q => params.append('quarter', q));
     } else {
@@ -361,7 +402,7 @@ export class ApiService {
     }
 
     const response = await fetch(`${buildBackendUrl(API_CONFIG.endpoints.pis.getScopeChanges)}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch scope changes data: ${response.statusText}`);
     }
@@ -373,7 +414,7 @@ export class ApiService {
   // PI Predictability API
   async getPIPredictability(piNames: string | string[], teamName?: string): Promise<any> {
     const params = new URLSearchParams();
-    
+
     if (Array.isArray(piNames)) {
       params.append('pi_names', piNames.join(','));
     } else {
@@ -381,46 +422,46 @@ export class ApiService {
     }
 
     const url = `${buildBackendUrl(API_CONFIG.endpoints.pis.getPredictability)}?${params}`;
-    
+
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Failed to fetch PI predictability data: ${response.statusText}`);
     }
 
     const result = await response.json();
-    
+
     // Handle the actual API response structure
     if (result.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
       if ('predictability_data' in result.data && Array.isArray(result.data.predictability_data)) {
         return result.data.predictability_data;
       }
     }
-    
+
     if (result.data && Array.isArray(result.data)) {
       return result.data;
     } else if (Array.isArray(result)) {
       return result;
     }
-    
+
     return [];
   }
 
   // Users API
   async getCurrentUser(): Promise<User> {
     const response = await fetch(buildBackendUrl(API_CONFIG.endpoints.users.getCurrentUser));
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch current user: ${response.statusText}`);
     }
 
     const result = await response.json();
-    
+
     if (result.success && result.data) {
       return result.data as User;
     }
-    
+
     return result as User;
   }
 
@@ -431,31 +472,31 @@ export class ApiService {
     limit: number = 500
   ): Promise<HierarchyItem[]> {
     const params = new URLSearchParams();
-    
+
     if (pi) {
       params.append('pi', pi);
     }
-    
+
     if (teamName) {
       params.append('team_name', teamName);
     }
-    
+
     if (limit !== 500) {
       params.append('limit', limit.toString());
     }
 
     const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.epicsHierarchy)}?${params}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch epics hierarchy: ${response.statusText}`);
     }
 
     const result: EpicsHierarchyResponse = await response.json();
-    
+
     // Transform the response to match HierarchyItem structure
     if (result.success && result.data && result.data.issues) {
-      
+
       const transformed = result.data.issues.map((item: any) => {
         // Try multiple possible field names for key, summary, and parent
         // The user mentioned: Key, issue_summary, and parent_key are fixed columns
@@ -463,7 +504,7 @@ export class ApiService {
         const key = item.Key || item.epic_key || item.key || item.issue_key || '';
         const summary = item["Issue Summary"] || item["issue_summary"] || item.epic_name || item.summary || item.name || '';
         const parent = item.Parent || item["Parent Key"] || item["parent_key"] || item.parent || null;
-        
+
         const transformed: HierarchyItem = {
           key: key,
           parent: parent,
@@ -482,15 +523,15 @@ export class ApiService {
             return acc;
           }, {} as any),
         };
-        
-        
+
+
         return transformed;
       });
-      
-      
+
+
       return transformed;
     }
-    
+
     return [];
   }
 
@@ -498,20 +539,20 @@ export class ApiService {
   async getSprintPredictability(months: number = 3): Promise<SprintPredictabilityItem[]> {
     const params = new URLSearchParams();
     params.append('months', months.toString());
-    
+
     const url = `${buildBackendUrl(API_CONFIG.endpoints.sprints.sprintPredictability)}?${params}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch sprint predictability: ${response.statusText}`);
     }
 
     const result: SprintPredictabilityResponse = await response.json();
-    
+
     if (result.success && result.data && result.data.sprint_predictability) {
       return result.data.sprint_predictability;
     }
-    
+
     return [];
   }
 
@@ -521,26 +562,26 @@ export class ApiService {
     isGroup: boolean = false
   ): Promise<ActiveSprintSummaryItem[]> {
     const params = new URLSearchParams();
-    
+
     if (teamName) {
       params.append('team_name', teamName);
     }
-    
+
     params.append('isGroup', isGroup.toString());
-    
+
     const url = `${buildBackendUrl(API_CONFIG.endpoints.sprints.activeSprintSummaryByTeam)}?${params}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch active sprint summary: ${response.statusText}`);
     }
 
     const result: ActiveSprintSummaryResponse = await response.json();
-    
+
     if (result.success && result.data && result.data.summaries) {
       return result.data.summaries;
     }
-    
+
     return [];
   }
 
@@ -548,20 +589,20 @@ export class ApiService {
   async getReleasePredictability(months: number = 3): Promise<ReleasePredictabilityItem[]> {
     const params = new URLSearchParams();
     params.append('months', months.toString());
-    
+
     const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.releasePredictability)}?${params}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch release predictability: ${response.statusText}`);
     }
 
     const result: ReleasePredictabilityResponse = await response.json();
-    
+
     if (result.success && result.data && result.data.release_predictability) {
       return result.data.release_predictability;
     }
-    
+
     return [];
   }
 
@@ -572,17 +613,17 @@ export class ApiService {
 
     const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.issuesGroupedByTeam)}?${params}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch issues by team: ${response.statusText}`);
     }
 
     const result: IssuesByTeamResponse = await response.json();
-    
+
     if (result.success && result.data && result.data.issues_by_team) {
       return result.data.issues_by_team;
     }
-    
+
     return [];
   }
 
@@ -592,20 +633,20 @@ export class ApiService {
     if (pi) {
       params.append('pi', pi);
     }
-    
+
     const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.epicOutboundDependencyLoadByQuarter)}${params.toString() ? `?${params}` : ''}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch epic outbound dependency load: ${response.statusText}`);
     }
 
     const result: ApiResponse<EpicDependencyItem[]> = await response.json();
-    
+
     if (result.success && result.data) {
       return result.data;
     }
-    
+
     throw new Error(result.message || 'Failed to fetch epic outbound dependency load');
   }
 
@@ -615,20 +656,20 @@ export class ApiService {
     if (pi) {
       params.append('pi', pi);
     }
-    
+
     const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.epicInboundDependencyLoadByQuarter)}${params.toString() ? `?${params}` : ''}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch epic inbound dependency load: ${response.statusText}`);
     }
 
     const result: ApiResponse<EpicDependencyItem[]> = await response.json();
-    
+
     if (result.success && result.data) {
       return result.data;
     }
-    
+
     throw new Error(result.message || 'Failed to fetch epic inbound dependency load');
   }
 
@@ -636,16 +677,16 @@ export class ApiService {
   async getTopDependenciesSummary(pi: string, teamName?: string, isGroup: boolean = false): Promise<TopDependenciesSummaryResponse> {
     const params = new URLSearchParams();
     params.append('pi', pi);
-    
+
     if (teamName) {
       params.append('team_name', teamName);
     }
-    
+
     params.append('isGroup', isGroup.toString());
-    
+
     const url = `${buildBackendUrl(API_CONFIG.endpoints.pis.getTopDependenciesSummary)}?${params}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch top dependencies summary: ${response.statusText}`);
     }
@@ -657,10 +698,10 @@ export class ApiService {
   async getAverageEpicCycleTime(months: number = 6): Promise<AverageEpicCycleTimeResponse> {
     const params = new URLSearchParams();
     params.append('months', months.toString());
-    
+
     const url = `${buildBackendUrl(API_CONFIG.endpoints.pis.getAverageEpicCycleTime)}?${params}`;
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch average epic cycle time: ${response.statusText}`);
     }
@@ -727,7 +768,7 @@ export class ApiService {
     const response = await fetch(
       `${buildBackendUrl(API_CONFIG.endpoints.insightTypes.getAll)}?active=true`
     );
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Failed to fetch insight types: ${errorText || response.statusText}`);
@@ -756,7 +797,7 @@ export class ApiService {
         })
       }
     );
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -770,7 +811,7 @@ export class ApiService {
       }
       throw new Error(errorMessage);
     }
-    
+
     return response.json();
   }
 
@@ -790,7 +831,7 @@ export class ApiService {
         })
       }
     );
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -804,7 +845,7 @@ export class ApiService {
       }
       throw new Error(errorMessage);
     }
-    
+
     return response.json();
   }
 
@@ -824,7 +865,7 @@ export class ApiService {
         })
       }
     );
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -838,7 +879,7 @@ export class ApiService {
       }
       throw new Error(errorMessage);
     }
-    
+
     return response.json();
   }
 
@@ -858,7 +899,7 @@ export class ApiService {
         })
       }
     );
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -872,7 +913,7 @@ export class ApiService {
       }
       throw new Error(errorMessage);
     }
-    
+
     return response.json();
   }
 }

@@ -43,7 +43,7 @@ const TeamVelocityChartAdvancedView: React.FC<TeamVelocityChartAdvancedViewProps
   togglePin,
   pinnedFilters = [],
 }) => {
-  const months = Number(filters.months ?? 3);
+  const months = Number(filters.months ?? 2);
   const teamName = (filters.team_name as string) ?? '';
   const isGroup = (filters.isGroup as boolean) ?? false;
 
@@ -246,7 +246,7 @@ const TeamVelocityChartAdvancedView: React.FC<TeamVelocityChartAdvancedViewProps
           <div className="flex-1 flex items-center justify-center">
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-              <div className="text-sm text-gray-600">Loading closed sprints...</div>
+              <div className="text-sm text-gray-600">Loading Velocity Chart...</div>
             </div>
           </div>
         )}
@@ -273,6 +273,7 @@ const TeamVelocityChartAdvancedView: React.FC<TeamVelocityChartAdvancedViewProps
               colorScheme={sprintScopeColors}
               loading={false}
               error={null}
+              averageVelocity={meta?.averageVelocity ?? null}
             />
           </div>
         )}
