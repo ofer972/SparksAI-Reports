@@ -12,6 +12,9 @@ import ActiveSprintReportPage from '@/components/active-sprint-report/ActiveSpri
 import CreateAgentJobsPage from '@/components/create-agent-jobs/CreateAgentJobsPage';
 import EpicScopeChangesPage from '@/components/epic-scope-changes/EpicScopeChangesPage';
 import TeamVelocityChartAdvancedPage from '@/components/team-velocity-chart-advanced/TeamVelocityChartAdvancedPage';
+import TeamAICardsPage from '@/components/team-ai-cards/TeamAICardsPage';
+import RecommendationsPage from '@/components/recommendations/RecommendationsPage';
+import PIAICardsPage from '@/components/pi-ai-cards/PIAICardsPage';
 import TreeSelect from '@/components/TreeSelect';
 
 export default function Home() {
@@ -40,6 +43,9 @@ export default function Home() {
     { id: 'dependency-graph', label: 'Dependency Graph', icon: '🕸️' },
     { id: 'direct-ai-sql-chat', label: 'Direct AI SQL Chat', icon: '💬' },
     { id: 'create-agent-jobs', label: 'Create Agent Jobs', icon: '⚙️' },
+    { id: 'team-ai-cards', label: 'Team / Group AI Cards', icon: '🎴' },
+    { id: 'recommendations', label: 'Recommendations', icon: '💡' },
+    { id: 'pi-ai-cards', label: 'PI AI Cards', icon: '📋' },
   ];
 
   const renderMainContent = () => {
@@ -86,6 +92,12 @@ export default function Home() {
         return <DirectAISQLChatPage />;
       case 'create-agent-jobs':
         return <CreateAgentJobsPage />;
+      case 'team-ai-cards':
+        return <TeamAICardsPage />;
+      case 'recommendations':
+        return <RecommendationsPage />;
+      case 'pi-ai-cards':
+        return <PIAICardsPage />;
       default:
         return (
           <div className="bg-white rounded-lg shadow-sm p-6 text-center">

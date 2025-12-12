@@ -9,10 +9,10 @@ import { useUser } from '@/contexts/UserContext';
 interface AIChatModalProps {
   isOpen: boolean;
   onClose: () => void;
-  
+
   // Required - identifies what we're chatting about
   chatType: string;
-  
+
   // Context parameters - each parent passes what it has
   insightsId?: number | string;
   recommendationId?: number | string;
@@ -54,6 +54,11 @@ export default function AIChatModal({
   const lastInitialSentAtRef = useRef<number>(0);
   // Timer ref for typewriter effect
   const typingTimerRef = useRef<number | null>(null);
+  // Speech recognition state
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  const finalTranscriptRef = useRef<string>(''); // Track final transcript to avoid duplication
 
   const onHeaderMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // Enable drag only on non-touch large screens
@@ -114,17 +119,17 @@ export default function AIChatModal({
       recommendation_id: recommendationId !== undefined && recommendationId !== null ? String(recommendationId) : '',
       insights_id: insightsId !== undefined && insightsId !== null ? String(insightsId) : '',
     };
-    
+
     // Only include prompt_name if provided (for dashboard chat with selected prompt)
     if (promptName && promptName.trim() !== '' && promptName !== '[use default]') {
       request.prompt_name = promptName;
     }
-    
+
     // Only include conversation_id if it exists (for follow-up questions)
     if (convId && convId.trim() !== '') {
       request.conversation_id = convId;
     }
-    
+
     return request;
   };
 
@@ -164,7 +169,7 @@ export default function AIChatModal({
       console.error('Error sending initial chat message:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message. Please try again.';
       setError(errorMessage);
-      
+
       // Add error message to chat
       const errorMsg: Message = {
         role: 'assistant',
@@ -185,6 +190,10 @@ export default function AIChatModal({
       setError(null);
       setConversationId('');
       setHasInitialMessage(false);
+      finalTranscriptRef.current = ''; // Reset transcript ref
+      if (isListening) {
+        stopListening();
+      }
     }
   }, [isOpen]);
 
@@ -211,6 +220,156 @@ export default function AIChatModal({
       }
     };
   }, []);
+
+  // Check if browser supports speech recognition
+  const isSpeechRecognitionSupported = () => {
+    return (
+      typeof window !== 'undefined' &&
+      (('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window))
+    );
+  };
+
+  // Initialize speech recognition
+  const initializeSpeechRecognition = () => {
+    if (!isSpeechRecognitionSupported()) {
+      setSpeechError('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
+      return null;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.continuous = true; // Keep listening until stopped
+    recognition.interimResults = true; // Get intermediate results for real-time display
+    recognition.lang = 'en-US'; // Set language (can be made configurable)
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setSpeechError(null);
+    };
+
+    recognition.onresult = (event: any) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      // Process all results
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      // Update final transcript ref
+      if (finalTranscript) {
+        finalTranscriptRef.current += finalTranscript;
+      }
+
+      // Update input value: final transcript + current interim
+      setInputValue(finalTranscriptRef.current + interimTranscript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+
+      let errorMessage = 'Speech recognition error occurred.';
+      switch (event.error) {
+        case 'no-speech':
+          errorMessage = 'No speech detected. Please try again.';
+          break;
+        case 'audio-capture':
+          errorMessage = 'No microphone found. Please check your microphone settings.';
+          break;
+        case 'not-allowed':
+          errorMessage = 'Microphone permission denied. Please allow microphone access.';
+          break;
+        case 'network':
+          errorMessage = 'Network error. Please check your internet connection.';
+          break;
+        case 'aborted':
+          // User stopped, don't show error
+          return;
+        default:
+          errorMessage = `Speech recognition error: ${event.error}`;
+      }
+      setSpeechError(errorMessage);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      // Finalize the transcript (remove any trailing interim text)
+      setInputValue(finalTranscriptRef.current.trim());
+    };
+
+    return recognition;
+  };
+
+  // Start listening
+  const startListening = () => {
+    if (loading) return; // Don't start if chat is loading
+
+    try {
+      // Reset final transcript when starting new session
+      finalTranscriptRef.current = inputValue.trim() + (inputValue.trim() ? ' ' : '');
+
+      const recognition = initializeSpeechRecognition();
+      if (!recognition) return;
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (error) {
+      console.error('Error starting speech recognition:', error);
+      setSpeechError('Failed to start speech recognition. Please try again.');
+    }
+  };
+
+  // Stop listening
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (error) {
+        console.error('Error stopping speech recognition:', error);
+      }
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+    // Ensure final transcript is set
+    setInputValue(finalTranscriptRef.current.trim());
+  };
+
+  // Toggle listening
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  // Cleanup speech recognition on unmount or modal close
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (error) {
+          // Ignore errors during cleanup
+        }
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
+
+  // Stop listening when modal closes
+  useEffect(() => {
+    if (!isOpen && recognitionRef.current) {
+      stopListening();
+    }
+  }, [isOpen]);
 
   const startTypewriter = (fullText: string, append: boolean = false) => {
     if (typingTimerRef.current) {
@@ -252,10 +411,16 @@ export default function AIChatModal({
     const question = inputValue.trim();
     if (!question || loading) return;
 
+    // Stop listening if active
+    if (isListening) {
+      stopListening();
+    }
+
     // Add user message to chat
     const userMessage: Message = { role: 'user', content: question };
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
+    finalTranscriptRef.current = ''; // Reset transcript ref
     setLoading(true);
     setError(null);
 
@@ -279,7 +444,7 @@ export default function AIChatModal({
       console.error('Error sending chat message:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message. Please try again.';
       setError(errorMessage);
-      
+
       // Add error message to chat
       const errorMsg: Message = {
         role: 'assistant',
@@ -391,24 +556,73 @@ export default function AIChatModal({
 
         {/* Input Area */}
         <div className="p-4 border-t border-gray-200">
+          {/* Speech recognition error message */}
+          {speechError && (
+            <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+              {speechError}
+              <button
+                onClick={() => setSpeechError(null)}
+                className="ml-2 text-red-500 hover:text-red-700"
+                aria-label="Dismiss error"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           <div className="flex items-end space-x-2">
-            <textarea
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your question here... (Press Enter to send, Shift+Enter for new line)"
-              rows={3}
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={loading}
-            />
+            <div className="flex-1 relative">
+              <textarea
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type your question here... (Press Enter to send, Shift+Enter for new line)"
+                rows={3}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={loading || isListening}
+              />
+              {/* Microphone button overlay */}
+              {isSpeechRecognitionSupported() && (
+                <button
+                  onClick={toggleListening}
+                  disabled={loading}
+                  className={`absolute right-2 bottom-2 p-2 rounded-full transition-all ${
+                    isListening
+                      ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  aria-label={isListening ? 'Stop recording' : 'Start voice input'}
+                  title={isListening ? 'Stop recording' : 'Start voice input'}
+                >
+                  {isListening ? (
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                      <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm7.3-3.86c-.35-.35-.92-.35-1.27 0l-2.12 2.12c-.35.35-.35.92 0 1.27.35.35.92.35 1.27 0l2.12-2.12c.35-.35.35-.92 0-1.27zm-14.6 0c-.35.35-.35.92 0 1.27l2.12 2.12c.35.35.92.35 1.27 0 .35-.35.35-.92 0-1.27L5.03 10.14c-.35-.35-.92-.35-1.27 0zM12 16c-2.21 0-4-1.79-4-4h2c0 1.1.9 2 2 2s2-.9 2-2h2c0 2.21-1.79 4-4 4z" />
+                    </svg>
+                  )}
+                </button>
+              )}
+            </div>
             <button
               onClick={handleSend}
-              disabled={!inputValue.trim() || loading}
+              disabled={!inputValue.trim() || loading || isListening}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
             >
               Send
             </button>
           </div>
+
+          {/* Listening indicator */}
+          {isListening && (
+            <div className="mt-2 flex items-center text-sm text-gray-600">
+              <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>
+              Listening... Speak now
+            </div>
+          )}
         </div>
       </div>
     </div>

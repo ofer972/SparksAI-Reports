@@ -34,7 +34,13 @@ import {
   InsightType,
   CreateJobResponse,
   TopDependenciesSummaryResponse,
-  AverageEpicCycleTimeResponse
+  AverageEpicCycleTimeResponse,
+  TeamAICard,
+  TeamAICardsResponse,
+  Recommendation,
+  RecommendationsCollectionResponse,
+  PIAICard,
+  PIAICardsResponse
 } from './config';
 
 // Re-export types for convenience
@@ -266,6 +272,298 @@ export class ApiService {
 
     const result: ApiResponse<AICardsResponse> = await response.json();
     return result.data;
+  }
+
+  // Team AI Cards Collection API
+  async getTeamAICards(date?: string, cardName?: string): Promise<TeamAICardsResponse> {
+    const params = new URLSearchParams();
+    if (date) {
+      params.append('date', date);
+    }
+    if (cardName) {
+      params.append('card_name', cardName);
+    }
+
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.generalData.teamAICards)}/getAllFields${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(`Failed to fetch team AI cards: ${errorMessage}`);
+    }
+
+    const result = await response.json();
+
+    // Handle different response structures
+    if (result.success && result.data) {
+      // Wrapped response: { success: true, data: { cards: [...], count: number }, message: "..." }
+      return result.data;
+    } else if (result.cards && Array.isArray(result.cards)) {
+      // Direct response: { cards: [...], count: number }
+      return result;
+    } else if (Array.isArray(result)) {
+      // Array response: [...]
+      return { cards: result, count: result.length };
+    }
+
+    // Fallback
+    return result;
+  }
+
+  // Update Team AI Card API
+  async updateTeamAICard(id: number, updates: Partial<TeamAICard>): Promise<TeamAICard> {
+    const url = buildBackendUrl(`${API_CONFIG.endpoints.generalData.teamAICards}/${id}`);
+
+    // Log the request for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('PATCH Team AI Card Request:', {
+        url,
+        id,
+        updates,
+        body: JSON.stringify(updates),
+      });
+    }
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        // Handle 422 validation error format
+        if (errorJson.detail && Array.isArray(errorJson.detail)) {
+          const details = errorJson.detail.map((d: any) => d.msg || d.type || 'Validation error').join(', ');
+          errorMessage = details;
+        } else {
+          errorMessage = errorJson.message || errorJson.error || errorJson.detail || errorMessage;
+        }
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+
+      // Log detailed error for debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.error('PATCH Team AI Card Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText,
+          errorMessage,
+          requestBody: updates,
+        });
+      }
+
+      throw new Error(`Failed to update team AI card: ${errorMessage}`);
+    }
+
+    // 200 response is a simple string, not an object
+    const result = await response.json();
+
+    // If it's a string, return the original card with updates applied
+    // If it's an object, return it
+    if (typeof result === 'string') {
+      // Return the updated card (we'll reconstruct it from the original + updates)
+      return { ...updates, id } as TeamAICard;
+    }
+
+    // Handle object response
+    if (result && typeof result === 'object') {
+      return (result as ApiResponse<TeamAICard>).data || result as TeamAICard;
+    }
+
+    // Fallback
+    return { ...updates, id } as TeamAICard;
+  }
+
+  // Recommendations Collection API
+  async getRecommendationsCollection(): Promise<RecommendationsCollectionResponse> {
+    const url = buildBackendUrl(API_CONFIG.endpoints.recommendations.getCollection);
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(`Failed to fetch recommendations: ${errorMessage}`);
+    }
+
+    const result = await response.json();
+
+    // Handle different response structures
+    if (result.success && result.data) {
+      // Wrapped response: { success: true, data: { recommendations: [...], count: number }, message: "..." }
+      return result.data;
+    } else if (result.recommendations && Array.isArray(result.recommendations)) {
+      // Direct response: { recommendations: [...], count: number }
+      return result;
+    } else if (Array.isArray(result)) {
+      // Array response: [...]
+      return { recommendations: result, count: result.length };
+    }
+
+    // Fallback
+    return result;
+  }
+
+  // Update Recommendation API
+  async updateRecommendation(id: number, updates: Partial<Recommendation>): Promise<Recommendation> {
+    const url = buildBackendUrl(`/recommendations/${id}`);
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        // Handle 422 validation error format
+        if (errorJson.detail && Array.isArray(errorJson.detail)) {
+          const details = errorJson.detail.map((d: any) => d.msg || d.type || 'Validation error').join(', ');
+          errorMessage = details;
+        } else {
+          errorMessage = errorJson.message || errorJson.error || errorJson.detail || errorMessage;
+        }
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(`Failed to update recommendation: ${errorMessage}`);
+    }
+
+    // 200 response is a simple string, not an object
+    const result = await response.json();
+
+    // If it's a string, return the original recommendation with updates applied
+    // If it's an object, return it
+    if (typeof result === 'string') {
+      // Return the updated recommendation (we'll reconstruct it from the original + updates)
+      return { ...updates, id } as Recommendation;
+    }
+
+    // Handle object response
+    if (result && typeof result === 'object') {
+      return (result as ApiResponse<Recommendation>).data || result as Recommendation;
+    }
+
+    // Fallback
+    return { ...updates, id } as Recommendation;
+  }
+
+  // PI AI Cards Collection API
+  async getPIAICardsCollection(): Promise<PIAICardsResponse> {
+    const url = buildBackendUrl(API_CONFIG.endpoints.piAICards.getAllFields);
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(`Failed to fetch PI AI cards: ${errorMessage}`);
+    }
+
+    const result = await response.json();
+
+    // Handle different response structures
+    if (result.success && result.data) {
+      // Wrapped response: { success: true, data: { cards: [...], count: number }, message: "..." }
+      return result.data;
+    } else if (result.cards && Array.isArray(result.cards)) {
+      // Direct response: { cards: [...], count: number }
+      return result;
+    } else if (Array.isArray(result)) {
+      // Array response: [...]
+      return { cards: result, count: result.length };
+    }
+
+    // Fallback
+    return result;
+  }
+
+  // Update PI AI Card API
+  async updatePIAICard(id: number, updates: Partial<PIAICard>): Promise<PIAICard> {
+    const url = buildBackendUrl(`/pi-ai-cards/${id}`);
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        // Handle 422 validation error format
+        if (errorJson.detail && Array.isArray(errorJson.detail)) {
+          const details = errorJson.detail.map((d: any) => d.msg || d.type || 'Validation error').join(', ');
+          errorMessage = details;
+        } else {
+          errorMessage = errorJson.message || errorJson.error || errorJson.detail || errorMessage;
+        }
+      } catch {
+        if (errorText && errorText.length < 200) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(`Failed to update PI AI card: ${errorMessage}`);
+    }
+
+    // 200 response is a simple string, not an object
+    const result = await response.json();
+
+    // If it's a string, return the original card with updates applied
+    // If it's an object, return it
+    if (typeof result === 'string') {
+      // Return the updated card (we'll reconstruct it from the original + updates)
+      return { ...updates, id } as PIAICard;
+    }
+
+    // Handle object response
+    if (result && typeof result === 'object') {
+      return (result as ApiResponse<PIAICard>).data || result as PIAICard;
+    }
+
+    // Fallback
+    return { ...updates, id } as PIAICard;
   }
 
   // PI Recommendations API

@@ -67,9 +67,15 @@ export const API_CONFIG = {
       getCards: '/team-ai-cards/getCards',
     },
 
+    // PI AI Cards endpoints
+    piAICards: {
+      getAllFields: '/pi-ai-cards/getAllFields',
+    },
+
     // Recommendations endpoints
     recommendations: {
       getTop: '/recommendations/getTeamTop',
+      getCollection: '/recommendations/collection',
     },
 
     // Team Metrics endpoints
@@ -219,6 +225,50 @@ export interface AICardsResponse {
   limit: number;
 }
 
+export interface TeamAICard {
+  id: number;
+  date: string;
+  team_name: string;
+  group_name?: string | null;
+  card_name: string;
+  card_type: string;
+  priority: string;
+  source: string;
+  source_job_id?: number | null;
+  description: string;
+  full_information: string;
+  information_json?: string | null;
+  pi?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TeamAICardsResponse {
+  cards: TeamAICard[];
+  count: number;
+}
+
+export interface PIAICard {
+  id: number;
+  date: string;
+  pi_name: string;
+  card_name: string;
+  card_type: string;
+  priority: string;
+  source: string;
+  source_job_id?: number | null;
+  description: string;
+  full_information: string;
+  information_json?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PIAICardsResponse {
+  cards: PIAICard[];
+  count: number;
+}
+
 export interface Recommendation {
   id: number;
   team_name: string;
@@ -228,7 +278,14 @@ export interface Recommendation {
   full_information: string;
   priority: string;
   status: string;
-  information_json?: string;
+  information_json?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RecommendationsCollectionResponse {
+  recommendations: Recommendation[];
+  count: number;
 }
 
 export interface RecommendationsResponse {
