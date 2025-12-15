@@ -132,17 +132,29 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
     const firstItem = data[0];
     const allKeys = Object.keys(firstItem);
 
-    // Filter out team_name, sprint_name, sprint_id, start_date, overall_progress_pct_color, and all _keys fields (they're used for links/coloring, not displayed as columns)
+    // Filter out fields that shouldn't be displayed as dynamic columns
+    // (we'll render some of them as fixed columns)
+    const excludedKeys = [
+      'team_name',
+      'sprint_name',
+      'sprint_id',
+      'start_date',
+      'end_date',
+      'overall_progress_pct',
+      'overall_progress_pct_color',
+      'total_issues_to_do',
+      'total_issues_in_progress',
+      'total_issues_done',
+      'issues_remaining',
+      'issues_added_color',
+    ];
+
     const otherKeys = allKeys.filter(key =>
-      key !== 'team_name' &&
-      key !== 'sprint_name' &&
-      key !== 'sprint_id' &&
-      key !== 'start_date' &&
-      key !== 'overall_progress_pct_color' &&
+      !excludedKeys.includes(key) &&
       !key.endsWith('_keys')
     );
 
-    // Build columns: team_name first, sprint_name second, then all other fields
+    // Build columns: team_name first, sprint_name second, then fixed columns, then all other fields
     const builtColumns: ColumnDef<ActiveSprintSummaryItem>[] = [
       {
         accessorKey: 'team_name',
@@ -160,12 +172,198 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
       {
         accessorKey: 'sprint_name',
         header: 'SPRINT NAME',
-        size: 200,
+        size: 160,
         cell: ({ getValue }) => {
           const value = getValue() as string;
           return (
             <div className="text-sm text-gray-900 font-medium">
               {value || '-'}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: 'end_date',
+        header: 'END DATE',
+        size: 120,
+        cell: ({ getValue }) => {
+          const val = getValue() as string;
+          if (!val) return <div className="text-sm text-gray-500 text-center">-</div>;
+          try {
+            const date = new Date(val);
+            const formatted = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            return (
+              <div className="text-sm text-gray-700 text-center">
+                {formatted}
+              </div>
+            );
+          } catch {
+            return <div className="text-sm text-gray-700">{val}</div>;
+          }
+        },
+      },
+      {
+        id: 'progress_status',
+        header: 'PROGRESS (STATUS CATEGORY)',
+        size: 200,
+        cell: ({ row }) => {
+          const item = row.original;
+          const done = item.total_issues_done || 0;
+          const inProgress = item.total_issues_in_progress || 0;
+          const toDo = item.total_issues_to_do || 0;
+          const total = done + inProgress + toDo;
+
+          if (total === 0) {
+            return (
+              <div className="text-sm text-gray-500 text-center">-</div>
+            );
+          }
+
+          const donePercent = (done / total) * 100;
+          const inProgressPercent = (inProgress / total) * 100;
+          const toDoPercent = (toDo / total) * 100;
+
+          return (
+            <div className="flex items-center justify-center">
+              <div className="w-full max-w-[180px] h-3 bg-gray-200 rounded-full overflow-hidden flex flex-row">
+                {done > 0 && (
+                  <div
+                    className="bg-green-600 h-full transition-all"
+                    style={{ width: `${donePercent}%`, minWidth: donePercent > 0 ? '2px' : '0' }}
+                    title={`Done: ${done}`}
+                  />
+                )}
+                {inProgress > 0 && (
+                  <div
+                    className="bg-blue-600 h-full transition-all"
+                    style={{ width: `${inProgressPercent}%`, minWidth: inProgressPercent > 0 ? '2px' : '0' }}
+                    title={`In Progress: ${inProgress}`}
+                  />
+                )}
+                {toDo > 0 && (
+                  <div
+                    className="bg-gray-300 h-full transition-all"
+                    style={{ width: `${toDoPercent}%`, minWidth: toDoPercent > 0 ? '2px' : '0' }}
+                    title={`To Do: ${toDo}`}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: 'overall_progress_pct',
+        header: 'OVERALL PROGRESS PCT',
+        size: 150,
+        cell: ({ getValue, row }) => {
+          const val = getValue() as number | null;
+          const item = row.original;
+          const progressColor = item.overall_progress_pct_color;
+
+          // Handle null progress percentage
+          if (val === null || val === undefined) {
+            return (
+              <div className="text-sm text-center font-medium text-gray-500">
+                -
+              </div>
+            );
+          }
+
+          const formattedVal = val.toFixed(1);
+          let colorClass = 'text-gray-700';
+          if (progressColor === 'green') {
+            colorClass = 'text-green-600 font-bold';
+          } else if (progressColor === 'yellow') {
+            colorClass = 'text-yellow-600 font-bold';
+          } else if (progressColor === 'red') {
+            colorClass = 'text-red-600 font-bold';
+          } else {
+            // null - Unable to calculate
+            colorClass = 'text-gray-500';
+          }
+
+          return (
+            <div className={`text-sm text-center font-medium ${colorClass}`}>
+              {formattedVal}%
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: 'total_issues_done',
+        header: 'TOTAL ISSUES DONE',
+        size: 150,
+        cell: ({ getValue, row }) => {
+          const val = getValue() as number;
+          const item = row.original;
+          const issueKeys = item.issues_done_keys as string[] | null;
+          const keysArray = issueKeys || [];
+
+          if (!keysArray || keysArray.length === 0 || val === 0) {
+            return (
+              <div className="text-sm text-green-600 font-bold text-center">
+                {val.toLocaleString()}
+              </div>
+            );
+          }
+
+          const handleClick = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            const cleanJiraUrl = getCleanJiraUrl();
+            const keysParam = keysArray.join(', ');
+            const jqlQuery = `key IN (${keysParam})`;
+            const encodedJql = encodeURIComponent(jqlQuery);
+            const jiraLink = `${cleanJiraUrl}/issues/?jql=${encodedJql}`;
+            window.open(jiraLink, '_blank');
+          };
+
+          return (
+            <div
+              className="text-sm font-bold text-green-600 hover:text-green-800 underline cursor-pointer text-center"
+              onClick={handleClick}
+              title={keysArray.join(', ')}
+            >
+              {val.toLocaleString()}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: 'issues_remaining',
+        header: 'ISSUES REMAINING',
+        size: 150,
+        cell: ({ getValue, row }) => {
+          const val = getValue() as number;
+          const item = row.original;
+          const issueKeys = item.issues_remaining_keys as string[] | null;
+          const keysArray = issueKeys || [];
+
+          if (!keysArray || keysArray.length === 0 || val === 0) {
+            return (
+              <div className="text-sm text-gray-500 text-center">
+                {val.toLocaleString()}
+              </div>
+            );
+          }
+
+          const handleClick = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            const cleanJiraUrl = getCleanJiraUrl();
+            const keysParam = keysArray.join(', ');
+            const jqlQuery = `key IN (${keysParam})`;
+            const encodedJql = encodeURIComponent(jqlQuery);
+            const jiraLink = `${cleanJiraUrl}/issues/?jql=${encodedJql}`;
+            window.open(jiraLink, '_blank');
+          };
+
+          return (
+            <div
+              className="text-sm font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer text-center"
+              onClick={handleClick}
+              title={keysArray.join(', ')}
+            >
+              {val.toLocaleString()}
             </div>
           );
         },
@@ -205,9 +403,7 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
         const isIssueCountField = hasKeysField && (
           key === 'issues_at_start' ||
           key === 'issues_added' ||
-          key === 'issues_done' ||
-          key === 'flagged_issues' ||
-          key === 'issues_remaining'
+          key === 'flagged_issues'
         );
 
         cellRenderer = ({ getValue, row }) => {
@@ -217,10 +413,19 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
           }
           if (isOverallProgressPct) {
             // Display with one decimal place, use overall_progress_pct_color from API
-            const formattedVal = val.toFixed(1);
             const item = row.original;
             const progressColor = item.overall_progress_pct_color;
 
+            // Handle null overall_progress_pct (should normally be filtered above)
+            if (val === null || val === undefined) {
+              return (
+                <div className="text-sm text-center font-medium text-gray-500">
+                  -
+                </div>
+              );
+            }
+
+            const formattedVal = val.toFixed(1);
             let colorClass = 'text-gray-700';
             if (progressColor === 'green') {
               colorClass = 'text-green-600 font-bold';
@@ -249,9 +454,38 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
           // If it's an issue count field with keys, make it a clickable link
           if (isIssueCountField) {
             const item = row.original;
-            const issueKeys = item[`${key}_keys`] as string[] || [];
+            const issueKeys = item[`${key}_keys`] as string[] | null;
+            const keysArray = issueKeys || [];
 
-            if (!issueKeys || issueKeys.length === 0 || val === 0) {
+            // Special handling for issues_added with color coding
+            const isIssuesAdded = key === 'issues_added';
+            const issuesAddedColor = isIssuesAdded ? (item.issues_added_color as 'red' | 'yellow' | 'default' | undefined) : undefined;
+
+            // Determine color class based on issues_added_color
+            let colorClass = 'text-blue-600';
+            let hoverColorClass = 'hover:text-blue-800';
+            if (isIssuesAdded && issuesAddedColor) {
+              if (issuesAddedColor === 'red') {
+                colorClass = 'text-red-600';
+                hoverColorClass = 'hover:text-red-800';
+              } else if (issuesAddedColor === 'yellow') {
+                colorClass = 'text-yellow-600';
+                hoverColorClass = 'hover:text-yellow-800';
+              } else if (issuesAddedColor === 'default') {
+                colorClass = 'text-blue-600';
+                hoverColorClass = 'hover:text-blue-800';
+              }
+            }
+
+            if (!keysArray || keysArray.length === 0 || val === 0) {
+              // Even when 0, apply color if it's issues_added with a color
+              if (isIssuesAdded && issuesAddedColor && issuesAddedColor !== 'default') {
+                return (
+                  <div className={`text-sm font-bold ${colorClass} text-center`}>
+                    {val.toLocaleString()}
+                  </div>
+                );
+              }
               return (
                 <div className="text-sm text-gray-500 text-center">
                   {val.toLocaleString()}
@@ -262,7 +496,7 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
             const handleClick = (e: React.MouseEvent) => {
               e.stopPropagation();
               const cleanJiraUrl = getCleanJiraUrl();
-              const keysParam = issueKeys.join(', ');
+              const keysParam = keysArray.join(', ');
               const jqlQuery = `key IN (${keysParam})`;
               const encodedJql = encodeURIComponent(jqlQuery);
               const jiraLink = `${cleanJiraUrl}/issues/?jql=${encodedJql}`;
@@ -271,9 +505,9 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
 
             return (
               <div
-                className="text-sm font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer text-center"
+                className={`text-sm font-bold ${colorClass} ${hoverColorClass} underline cursor-pointer text-center`}
                 onClick={handleClick}
-                title={issueKeys.join(', ')}
+                title={keysArray.join(', ')}
               >
                 {val.toLocaleString()}
               </div>
@@ -320,7 +554,7 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
       }
 
       // Make sprint_goal column wider
-      const columnSize = key === 'sprint_goal' ? 300 : 120;
+      const columnSize = key === 'sprint_goal' ? 360 : 120;
 
       builtColumns.push({
         accessorKey: key,
