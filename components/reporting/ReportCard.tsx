@@ -158,7 +158,7 @@ const ReportCard: React.FC<ReportCardProps> = ({
         <div className="flex-1 flex flex-col min-h-0 rounded-b-xl overflow-hidden">
           {/* Active Filter Badges */}
           {filterBadges && filterBadges.length > 0 && (
-            <div className="flex-shrink-0 px-4 py-1.5 border-b border-gray-200 bg-gradient-to-r from-blue-25 to-indigo-25">
+            <div className="flex-shrink-0 px-4 py-1.5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
               <div className="flex flex-wrap gap-1.5 items-center">
                 <span className="text-xs font-semibold text-gray-600 mr-0.5">Active Filters:</span>
                 {filterBadges.map((badge, index) => (

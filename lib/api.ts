@@ -765,25 +765,35 @@ export class ApiService {
 
   // Epics Hierarchy API
   async getEpicsHierarchy(
-    pi?: string,
+    pi?: string | string[],
     teamName?: string,
-    limit: number = 500
+    isGroup?: boolean,
+    hierarchyLevel?: number
   ): Promise<HierarchyItem[]> {
     const params = new URLSearchParams();
 
     if (pi) {
-      params.append('pi', pi);
+      if (Array.isArray(pi)) {
+        // Multiple PIs - join with comma for query string
+        params.append('pi', pi.join(','));
+      } else {
+        params.append('pi', pi);
+      }
     }
 
     if (teamName) {
       params.append('team_name', teamName);
     }
 
-    if (limit !== 500) {
-      params.append('limit', limit.toString());
+    if (isGroup !== undefined) {
+      params.append('isGroup', isGroup.toString());
     }
 
-    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.epicsHierarchy)}?${params}`;
+    if (hierarchyLevel !== undefined && hierarchyLevel !== null) {
+      params.append('hierarchy_level', hierarchyLevel.toString());
+    }
+
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.reports.issuesHierarchy)}?${params}`;
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -793,9 +803,15 @@ export class ApiService {
     const result: EpicsHierarchyResponse = await response.json();
 
     // Transform the response to match HierarchyItem structure
-    if (result.success && result.data && result.data.issues) {
+    // Reports endpoint wraps issues under data.result.issues
+    const issues =
+      result.data?.result?.issues ??
+      result.data?.issues ??
+      [];
 
-      const transformed = result.data.issues.map((item: any) => {
+    if (result.success && issues && Array.isArray(issues) && issues.length > 0) {
+
+      const transformed = issues.map((item: any) => {
         // Try multiple possible field names for key, summary, and parent
         // The user mentioned: Key, issue_summary, and parent_key are fixed columns
         // But actual API uses: Key (capital K), "Issue Summary" (with space and capitals), and Parent (capital P)

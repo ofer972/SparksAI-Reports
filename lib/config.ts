@@ -136,6 +136,12 @@ export const API_CONFIG = {
       activeSprintSummaryByTeam: '/sprints/active-sprint-summary-by-team',
     },
 
+    // Reports endpoints
+    reports: {
+      // Generic report endpoints (report_id will be part of the path)
+      issuesHierarchy: '/reports/issues-hierarchy',
+    },
+
   },
 } as const;
 
@@ -443,9 +449,19 @@ export interface HierarchyItem {
 export interface EpicsHierarchyResponse {
   success: boolean;
   data: {
-    issues: any[];
-    count: number;
-    limit: number;
+    // New reports endpoint structure: data.result.issues / count / limit
+    result?: {
+      issues: any[];
+      count: number;
+      limit: number;
+      [key: string]: any;
+    };
+    // Backwards compatibility with legacy structure: data.issues / count / limit
+    issues?: any[];
+    count?: number;
+    limit?: number;
+    // Additional metadata fields (definition, filters, meta, etc.)
+    [key: string]: any;
   };
   message: string;
 }

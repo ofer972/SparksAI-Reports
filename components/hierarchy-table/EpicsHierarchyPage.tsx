@@ -1,31 +1,64 @@
+/* Re-implemented Epics Hierarchy page using ReportCard, advanced filters, and
+ * the new reports endpoint /api/v1/reports/issues-hierarchy.
+ */
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import type { HierarchyItem } from '@/lib/config';
 import HierarchyTable from './HierarchyTable';
-import { ColumnConfig } from './types';
-import { HierarchyItem } from '@/lib/config';
+import type { ColumnConfig } from './types';
+import ReportCard from '../reporting/ReportCard';
+import ReportFiltersRow from '../reporting/ReportFiltersRow';
+import ReportFilterField from '../reporting/ReportFilterField';
+import TeamGroupFilter from '../TeamGroupFilter';
+import MultiPIFilter from '../MultiPIFilter';
 import { ApiService } from '@/lib/api';
 
 export default function EpicsHierarchyPage() {
   const [data, setData] = useState<HierarchyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Filter states
-  const [teamName, setTeamName] = useState('');
-  const [piName, setPiName] = useState('');
+  const [piNames, setPiNames] = useState<string[]>([]);
+  const [teamName, setTeamName] = useState<string | null>(null);
+  const [isGroup, setIsGroup] = useState<boolean>(false);
+  const [hierarchyLevel, setHierarchyLevel] = useState<number | undefined>(undefined);
+  const [filterText, setFilterText] = useState('');
+  const [availablePIs, setAvailablePIs] = useState<string[]>([]);
 
-  const apiService = new ApiService();
+  const apiService = useMemo(() => new ApiService(), []);
 
-  // Fetch data
-  const fetchData = async () => {
+  // Fetch available PIs for the filter
+  useEffect(() => {
+    const fetchPIs = async () => {
+      try {
+        const response = await apiService.getPIs();
+        if (response.pis) {
+          const piNamesList = response.pis.map((pi) => pi.pi_name);
+          setAvailablePIs(piNamesList);
+        }
+      } catch (err) {
+        console.error('Error fetching PIs:', err);
+      }
+    };
+    fetchPIs();
+  }, [apiService]);
+
+  // Fetch data from reports endpoint
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
+      // Build PI parameter - can be array, single value, or undefined
+      const piParam = piNames.length > 0 ? (piNames.length === 1 ? piNames[0] : piNames) : undefined;
+
       const result = await apiService.getEpicsHierarchy(
-        piName || undefined,
-        teamName || undefined
+        piParam,
+        teamName || undefined,
+        isGroup,
+        hierarchyLevel
       );
       setData(result);
     } catch (err) {
@@ -40,136 +73,251 @@ export default function EpicsHierarchyPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiService, piNames, teamName, isGroup, hierarchyLevel]);
 
-  // Auto-fetch on mount
+  // Auto-fetch on mount and when filters change
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Normalize the data to ensure key/parent fields exist for the tree builder
+  const normalizedIssues = useMemo<HierarchyItem[]>(() => {
+    return data.map((issue: any) => ({
+      ...issue,
+      key: issue.Key || issue.key,
+      parent: issue['Parent Key'] || issue['Parent'] || issue.parent || null,
+    }));
+  }, [data]);
+
+  // Filter issues by search text (Summary and other fields)
+  const filteredIssues = useMemo(() => {
+    const query = filterText.trim().toLowerCase();
+    if (!query) {
+      return normalizedIssues;
+    }
+
+    return normalizedIssues.filter((issue) => {
+      const values = Object.values(issue)
+        .map((v) => String(v ?? '').toLowerCase())
+        .join(' ');
+      return values.includes(query);
+    });
+  }, [normalizedIssues, filterText]);
+
+  const handlePIsChange = useCallback((selectedPIs: string[]) => {
+    setPiNames(selectedPIs);
   }, []);
 
-  // Dynamically build columns from data - specific column order
+  const handleTeamNameChange = useCallback(
+    (value: string | null, type: 'group' | 'team', _name: string) => {
+      setTeamName(value);
+      // Reset isGroup when team is cleared, otherwise set based on type.
+      if (!value) {
+        setIsGroup(false);
+      } else if (type === 'group') {
+        setIsGroup(true);
+      }
+    },
+    []
+  );
+
+  // Build columns from data (Key, Type, Quarter PI, Team Name, Summary, Status, Parent Progress, Dependency, Flagged Issues)
   const columns = useMemo<ColumnConfig[]>(() => {
-    // Define the exact columns in the order specified
-    const columnOrder: { key: string; header: string; renderer: 'link' | 'badge' | 'text'; width?: { min?: number; max?: number } }[] = [
-      { key: 'key', header: 'Key', renderer: 'link', width: { min: 120, max: 150 } },
-      { key: 'Type', header: 'Type', renderer: 'badge', width: { min: 100, max: 120 } },
-      { key: 'summary', header: 'Summary', renderer: 'text', width: { min: 400 } },
-      { key: 'Status', header: 'Status', renderer: 'badge', width: { min: 100, max: 120 } },
-      { key: 'Epic Progress %', header: 'Epic Progress %', renderer: 'text', width: { min: 80, max: 100 } },
-      { key: 'Dependency', header: 'Dependency', renderer: 'badge', width: { min: 100 } },
-      { key: 'Team Name', header: 'Team Name', renderer: 'text', width: { min: 150 } },
-      { key: 'quarter_pi', header: 'Quarter PI', renderer: 'text', width: { min: 150 } },
-      { key: '# Flagged Issues', header: '# Flagged Issues', renderer: 'text', width: { min: 120 } },
+    if (!normalizedIssues.length) {
+      return [];
+    }
+
+    const firstRow = normalizedIssues[0];
+
+    const columnsToShow: Array<{
+      key: string;
+      header: string;
+      renderer?: 'link' | 'badge' | 'text';
+      minWidth?: number;
+      maxWidth?: number;
+      size?: number;
+    }> = [
+      // Key (link)
+      { key: 'Key', header: 'Key', renderer: 'link', minWidth: 60, maxWidth: 120, size: 80 },
+      { key: 'key', header: 'Key', renderer: 'link', minWidth: 60, maxWidth: 120, size: 80 },
+      // Type (badge)
+      { key: 'Type', header: 'Type', renderer: 'badge', minWidth: 60, maxWidth: 120, size: 80 },
+      { key: 'type', header: 'Type', renderer: 'badge', minWidth: 60, maxWidth: 120, size: 80 },
+      // Quarter PI
+      { key: 'quarter_pi', header: 'Quarter PI', minWidth: 60, maxWidth: 120, size: 80 },
+      // Team Name
+      { key: 'Team Name', header: 'Team Name', minWidth: 60, maxWidth: 120, size: 80 },
+      { key: 'team_name', header: 'Team Name', minWidth: 60, maxWidth: 120, size: 80 },
+      // Summary (flexible width, no max)
+      { key: 'Issue Summary', header: 'Summary', renderer: 'text', minWidth: 200, size: 250 },
+      { key: 'summary', header: 'Summary', renderer: 'text', minWidth: 200, size: 250 },
+      // Status (badge)
+      { key: 'Status', header: 'Status', renderer: 'badge', minWidth: 60, maxWidth: 120, size: 80 },
+      { key: 'status', header: 'Status', renderer: 'badge', minWidth: 60, maxWidth: 120, size: 80 },
+      // Parent Progress (Progress% field)
+      { key: 'Progress%', header: 'Parent Progress', renderer: 'text', minWidth: 100, maxWidth: 120, size: 105 },
+      { key: 'Progress (%)', header: 'Parent Progress', renderer: 'text', minWidth: 100, maxWidth: 120, size: 105 },
+      // Dependency
+      { key: 'Dependency', header: 'Dependency', renderer: 'badge', minWidth: 60, maxWidth: 80, size: 65 },
+      // Flagged Issues
+      { key: '# Flagged Issues', header: 'Flagged Issues', renderer: 'text', minWidth: 80, maxWidth: 100, size: 85 },
     ];
 
-    // Build columns, checking if each field exists in the data
+    const addedHeaders = new Set<string>();
     const builtColumns: ColumnConfig[] = [];
-    
-    if (data.length > 0) {
-      const firstItem = data[0];
-      
-      columnOrder.forEach(colDef => {
-        // Check if the field exists in the data (try exact match first, then case-insensitive, then underscore variations)
-        let fieldKey = Object.keys(firstItem).find(k => 
-          k === colDef.key || k.toLowerCase() === colDef.key.toLowerCase()
-        );
-        
-        // For quarter_pi, also try variations
-        if (!fieldKey && colDef.key === 'quarter_pi') {
-          fieldKey = Object.keys(firstItem).find(k => 
-            k === 'quarter_pi' || 
-            k === 'Quarter_PI' || 
-            k === 'Quarter PI of Epic' ||
-            k.toLowerCase().replace(/\s+/g, '_') === 'quarter_pi'
-          );
-        }
-        
-        if (fieldKey) {
-          builtColumns.push({
-            id: fieldKey,
-            header: colDef.header,
-            accessorKey: fieldKey,
-            renderer: colDef.renderer,
-            minWidth: colDef.width?.min,
-            maxWidth: colDef.width?.max,
-          });
-        }
-      });
-    } else {
-      // If no data, return column definitions anyway (for initial render)
-      columnOrder.forEach(colDef => {
+
+    columnsToShow.forEach((colDef) => {
+      if (addedHeaders.has(colDef.header)) {
+        return;
+      }
+
+      const fieldKey = Object.prototype.hasOwnProperty.call(firstRow, colDef.key) ? colDef.key : undefined;
+
+      if (fieldKey) {
+        addedHeaders.add(colDef.header);
         builtColumns.push({
           id: colDef.key,
           header: colDef.header,
-          accessorKey: colDef.key,
+          accessorKey: fieldKey,
           renderer: colDef.renderer,
-          minWidth: colDef.width?.min,
-          maxWidth: colDef.width?.max,
+          minWidth: colDef.minWidth,
+          maxWidth: colDef.maxWidth,
+          size: colDef.size,
         });
+      }
+    });
+
+    return builtColumns;
+  }, [normalizedIssues]);
+
+  // Active filter badges shown under the header
+  const filterBadges = useMemo(() => {
+    const badges: { label: string; value: string; filterKey?: string }[] = [];
+
+    if (piNames.length > 0) {
+      badges.push({
+        label: 'PI',
+        value: piNames.join(', '),
+        filterKey: 'pi',
       });
     }
 
-    return builtColumns;
-  }, [data]);
+    if (teamName) {
+      badges.push({
+        label: 'Team',
+        value: teamName,
+        filterKey: 'team_name',
+      });
+    }
+
+    if (hierarchyLevel !== undefined && hierarchyLevel !== null) {
+      badges.push({
+        label: 'Hierarchy Level',
+        value: hierarchyLevel.toString(),
+        filterKey: 'hierarchy_level',
+      });
+    }
+
+    if (isGroup) {
+      badges.push({
+        label: 'Team Type',
+        value: 'Group',
+        filterKey: 'isGroup',
+      });
+    }
+
+    return badges;
+  }, [piNames, teamName, hierarchyLevel, isGroup]);
+
+  // Filters row (PI first)
+  const filterRow = (
+    <ReportFiltersRow>
+      <ReportFilterField label="PIs">
+        <MultiPIFilter
+          selectedPIs={piNames}
+          onPIsChange={handlePIsChange}
+          maxSelections={100}
+          autoSelectFirst={false}
+          pis={availablePIs}
+        />
+      </ReportFilterField>
+
+      <ReportFilterField label="Team">
+        <div className="flex items-center gap-2">
+          <TeamGroupFilter
+            value={teamName}
+            onChange={handleTeamNameChange}
+            placeholder="Select team"
+            allowClear={true}
+          />
+          {teamName && (
+            <label className="flex items-center gap-1 text-xs text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isGroup}
+                onChange={(e) => setIsGroup(e.target.checked)}
+                className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span>Group</span>
+            </label>
+          )}
+        </div>
+      </ReportFilterField>
+
+      <ReportFilterField label="Hierarchy Level">
+        <select
+          value={hierarchyLevel ?? ''}
+          onChange={(event) => {
+            const value = event.target.value;
+            setHierarchyLevel(value === '' ? undefined : parseInt(value, 10));
+          }}
+          className="w-32 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+        >
+          <option value="">All Levels</option>
+          <option value="1">Level 1</option>
+          <option value="2">Level 2</option>
+          <option value="3">Level 3</option>
+          <option value="4">Level 4</option>
+        </select>
+      </ReportFilterField>
+
+      <ReportFilterField label="Search">
+        <input
+          type="text"
+          value={filterText}
+          onChange={(event) => setFilterText(event.target.value)}
+          placeholder="Search hierarchy..."
+          className="w-48 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      </ReportFilterField>
+
+    </ReportFiltersRow>
+  );
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="w-full sm:w-[200px]">
-            <label htmlFor="team-name" className="block text-sm font-medium text-gray-700 mb-1">
-              Team Name
-            </label>
-            <input
-              id="team-name"
-              type="text"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              placeholder="Enter team name"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          
-          <div className="w-full sm:w-[200px]">
-            <label htmlFor="pi-name" className="block text-sm font-medium text-gray-700 mb-1">
-              PI Name
-            </label>
-            <input
-              id="pi-name"
-              type="text"
-              value={piName}
-              onChange={(e) => setPiName(e.target.value)}
-              placeholder="Enter PI name"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="w-full sm:w-auto">
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              className="w-full sm:w-auto px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? 'Loading...' : 'Apply Filters'}
-            </button>
-          </div>
-        </div>
-      </div>
-
+    <ReportCard
+      title="Epics Hierarchy"
+      filters={filterRow}
+      filterBadges={filterBadges}
+      onRefresh={fetchData}
+      className="h-full"
+    >
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-3">
           <div className="flex">
             <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              <svg className="h-4 w-4 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
               </svg>
             </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Error loading data</h3>
-              <p className="mt-1 text-sm text-red-700">{error}</p>
+            <div className="ml-2">
+              <h3 className="text-xs font-medium text-red-800">Error loading data</h3>
+              <p className="mt-0.5 text-xs text-red-700">{error}</p>
             </div>
           </div>
         </div>
@@ -177,24 +325,22 @@ export default function EpicsHierarchyPage() {
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading hierarchy data...</p>
+        <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+          <p className="mt-3 text-gray-600 text-sm">Loading hierarchy data...</p>
         </div>
       )}
 
       {/* Table */}
       {!loading && !error && (
         <HierarchyTable
-          data={data}
+          data={filteredIssues}
           columns={columns}
           defaultExpanded={false}
-          onRowClick={(item) => {
-            // You can add navigation or modal opening here
-          }}
+          showControls={false}
         />
       )}
-    </div>
+    </ReportCard>
   );
 }
 

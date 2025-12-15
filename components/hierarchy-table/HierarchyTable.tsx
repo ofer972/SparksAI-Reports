@@ -9,7 +9,6 @@ import {
   flexRender,
   ColumnDef,
   Row,
-  ExpandedState,
 } from '@tanstack/react-table';
 import { HierarchyItem, getCleanJiraUrl } from '@/lib/config';
 import { TreeNode, ColumnConfig, HierarchyTableProps } from './types';
@@ -19,11 +18,32 @@ export default function HierarchyTable({
   data,
   columns,
   defaultExpanded = false,
+  expanded: controlledExpanded,
+  onExpandedChange,
   onRowClick,
   className = '',
+  showControls = true,
 }: HierarchyTableProps) {
-  const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [internalExpanded, setInternalExpanded] = useState<Record<string, boolean>>({});
   const [globalFilter, setGlobalFilter] = useState('');
+  const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
+
+  // Support controlled or uncontrolled expanded state
+  const expanded = controlledExpanded !== undefined ? controlledExpanded : internalExpanded;
+  const setExpanded = onExpandedChange
+    ? (
+        updater:
+          | Record<string, boolean>
+          | ((prev: Record<string, boolean>) => Record<string, boolean>)
+      ) => {
+        const current = controlledExpanded || {};
+        const next =
+          typeof updater === 'function'
+            ? (updater as (prev: Record<string, boolean>) => Record<string, boolean>)(current)
+            : updater;
+        onExpandedChange(next as Record<string, boolean>);
+      }
+    : setInternalExpanded;
 
   // Build tree structure from flat data
   const tree = useMemo(() => {
@@ -79,13 +99,14 @@ export default function HierarchyTable({
   const columnDefs = useMemo<ColumnDef<TreeNode>[]>(() => {
     return columns.map(col => {
       const accessorKey = col.accessorKey || col.id;
-      
+
       return {
         id: col.id,
         header: col.header,
         accessorKey,
         minSize: col.minWidth,
         maxSize: col.maxWidth,
+        size: col.size,
         cell: ({ getValue, row, column }) => {
           const value = getValue();
           const item = row.original;
@@ -99,13 +120,13 @@ export default function HierarchyTable({
           // Link renderer (Key only - Summary is now text)
           if (col.renderer === 'link' || col.id === 'key') {
             let linkUrl = col.linkBuilder ? col.linkBuilder(item) : `#${item.key}`;
-            
+
             // For Key column, build JIRA URL
             if (col.id === 'key' && item.key) {
               const cleanJiraUrl = getCleanJiraUrl();
               linkUrl = `${cleanJiraUrl}/browse/${item.key}`;
             }
-            
+
             return (
               <div
                 className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
@@ -131,11 +152,11 @@ export default function HierarchyTable({
           // Dependency column - show checkbox only if true
           if (col.id === 'Dependency' || col.accessorKey === 'Dependency') {
             const isDependency = value === true || value === 'true' || String(value).toLowerCase() === 'true';
-            
+
             if (!isDependency) {
               return <div className="text-center"></div>;
             }
-            
+
             return (
               <div className="text-center">
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded border-2 border-blue-600 bg-blue-50">
@@ -150,21 +171,25 @@ export default function HierarchyTable({
           // Badge renderer with color mapping
           if (col.renderer === 'badge' || col.id === 'status' || col.id === 'type' || col.id === 'status_category') {
             let badgeClass = 'px-2 py-1 rounded text-xs font-medium border';
-            
+            const colIdLower = String(col.id || '').toLowerCase();
+
             if (col.colorMap && value) {
+              // Explicit color map takes precedence
               badgeClass += ` ${col.colorMap[String(value)] || 'bg-gray-100 text-gray-800 border-gray-200'}`;
-            } else if (col.id === 'status' || col.id === 'Status') {
+            } else if (colIdLower === 'status') {
               // Status should use status_category colors - no fallback
               // Try multiple possible field names for status_category
-              const statusCategory = item.status_category || 
-                                     item['Status Category'] || 
-                                     item['status_category'] ||
-                                     item['Status Category of Epic'];
-              
+              const statusCategory =
+                item.status_category ||
+                item['Status Category'] ||
+                item['status_category'] ||
+                item['Status Category of Epic'];
+
               badgeClass += ` ${getStatusCategoryColor(String(statusCategory || ''))}`;
-            } else if (col.id === 'status_category') {
+            } else if (colIdLower === 'status_category') {
               badgeClass += ` ${getStatusCategoryColor(String(value || ''))}`;
-            } else if (col.id === 'type') {
+            } else if (colIdLower === 'type') {
+              // Type badges (Epic, Story, Task, Bug, etc.) use dedicated type colors
               badgeClass += ` ${getTypeColor(String(value || ''))}`;
             } else {
               badgeClass += ' bg-gray-100 text-gray-800 border-gray-200';
@@ -182,11 +207,11 @@ export default function HierarchyTable({
           // # Flagged Issues - hide if zero
           if (col.id === '# Flagged Issues' || col.accessorKey === '# Flagged Issues') {
             const flaggedCount = typeof value === 'number' ? value : (typeof value === 'string' ? parseInt(value) : 0);
-            
+
             if (flaggedCount === 0 || isNaN(flaggedCount)) {
               return <div className="text-center"></div>;
             }
-            
+
             return (
               <div className="text-center">
                 <span className="text-sm text-gray-700">
@@ -196,16 +221,28 @@ export default function HierarchyTable({
             );
           }
 
-          // Epic Progress % - special handling with color and center alignment
-          if (col.id === 'Epic Progress %' || col.accessorKey === 'Epic Progress %') {
-            const progressNum = typeof value === 'number' ? value : (typeof value === 'string' ? parseFloat(value) : 0);
+          // Parent Progress (Progress%) - special handling with color and center alignment
+          if (
+            col.id === 'Progress%' ||
+            col.accessorKey === 'Progress%' ||
+            col.id === 'Progress (%)' ||
+            col.accessorKey === 'Progress (%)'
+          ) {
+            const progressNum =
+              typeof value === 'number' ? value : typeof value === 'string' ? parseFloat(value) : 0;
             const progressInt = Math.floor(progressNum); // Truncate to integer
-            const displayValue = isNaN(progressInt) ? '-' : `${progressInt}%`;
-            
+
+            // Show empty if progress is zero or invalid
+            if (progressInt === 0 || isNaN(progressInt)) {
+              return <div className="text-center"></div>;
+            }
+
+            const displayValue = `${progressInt}%`;
+
             // Get Status field (not status_category)
             const status = item.Status || item.status || '';
             const statusLower = String(status).toLowerCase();
-            
+
             // Determine color: red bold if Status is "done" and progress is not 100%
             let progressColor = '';
             if ((statusLower === 'done' || statusLower === 'closed') && progressInt !== 100) {
@@ -218,9 +255,7 @@ export default function HierarchyTable({
 
             return (
               <div className="text-center">
-                <span className={`text-sm ${progressColor}`}>
-                  {displayValue}
-                </span>
+                <span className={`text-sm ${progressColor}`}>{displayValue}</span>
               </div>
             );
           }
@@ -247,17 +282,17 @@ export default function HierarchyTable({
     // Option 3: Caret (►/▼) - arrow-like
     // Option 4: Triangle (▷/▽) - geometric
     // Option 5: SVG chevron - modern and customizable
-    
+
     const expandIcon = (expanded: boolean) => {
       // Current: Plus/Minus
       // return expanded ? '−' : '+';
-      
+
       // Option: Chevron right/down
       return expanded ? '▼' : '▶';
-      
-      // Option: Caret right/down  
+
+      // Option: Caret right/down
       // return expanded ? '▼' : '►';
-      
+
       // Option: Triangle
       // return expanded ? '▽' : '▷';
     };
@@ -295,9 +330,10 @@ export default function HierarchyTable({
           </button>
         );
       },
-      size: 50,
-      minSize: 50,
-      maxSize: 50,
+      // Make expand/collapse column narrower
+      size: 25,
+      minSize: 25,
+      maxSize: 25,
     };
 
     return [expandColumn, ...columnDefs];
@@ -315,42 +351,44 @@ export default function HierarchyTable({
     data: flatData,
     columns: columnsWithExpand,
     state: {
-      expanded,
       globalFilter,
+      columnSizing,
     },
-    onExpandedChange: setExpanded,
     onGlobalFilterChange: setGlobalFilter,
+    onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    enableExpanding: true,
-    getSubRows: (row) => row.children,
+    enableColumnResizing: true,
+    columnResizeMode: 'onChange',
     globalFilterFn: (row, columnId, filterValue) => {
       const searchValue = String(filterValue).toLowerCase();
       if (!searchValue) return true;
-      
+
       // Search across all column values
       const item = row.original;
       const searchableValues = Object.values(item)
         .map(v => String(v || '').toLowerCase())
         .join(' ');
-      
+
       return searchableValues.includes(searchValue);
     },
   });
 
   return (
     <div className={`bg-white rounded-lg shadow-sm ${className}`}>
-      {/* Global Filter */}
-      <div className="p-4 border-b border-gray-200">
-        <input
-          type="text"
-          placeholder="Search all columns..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
+      {/* Global Filter (can be hidden by parent) */}
+      {showControls && (
+        <div className="p-4 border-b border-gray-200">
+          <input
+            type="text"
+            placeholder="Search all columns..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto">
@@ -359,16 +397,22 @@ export default function HierarchyTable({
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id} className="bg-gray-50 border-b border-gray-200">
                 {headerGroup.headers.map(header => {
-                  const isProgressColumn = header.id === 'Epic Progress %' || header.column.id === 'Epic Progress %';
+                  const isProgressColumn =
+                    header.id === 'Progress%' ||
+                    header.column.id === 'Progress%' ||
+                    header.id === 'Progress (%)' ||
+                    header.column.id === 'Progress (%)';
                   const isFlaggedColumn = header.id === '# Flagged Issues' || header.column.id === '# Flagged Issues';
                   const isDependencyColumn = header.id === 'Dependency' || header.column.id === 'Dependency';
                   const isCenterAligned = isProgressColumn || isFlaggedColumn || isDependencyColumn;
                   return (
                   <th
                     key={header.id}
-                    className={`px-1.5 py-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wider ${isCenterAligned ? 'text-center' : 'text-left'}`}
+                    className={`px-1.5 py-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wider relative border-r border-gray-200 ${
+                      isCenterAligned ? 'text-center' : 'text-left'
+                    }`}
                     style={{
-                      width: header.getSize() !== 150 ? header.getSize() : undefined,
+                      width: header.getSize(),
                       minWidth: header.column.columnDef.minSize,
                       maxWidth: header.column.columnDef.maxSize,
                     }}
@@ -388,6 +432,15 @@ export default function HierarchyTable({
                           desc: ' ↓',
                         }[header.column.getIsSorted() as string] ?? ''}
                       </div>
+                    )}
+                    {header.column.getCanResize?.() && (
+                      <div
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                        className={`absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none ${
+                          header.column.getIsResizing() ? 'bg-blue-500' : 'hover:bg-blue-300'
+                        }`}
+                      />
                     )}
                   </th>
                   );
@@ -409,23 +462,26 @@ export default function HierarchyTable({
                 <tr
                   key={row.id}
                   className={`border-b border-gray-100 transition-colors ${
-                    isEpic 
-                      ? 'bg-gray-50 hover:bg-gray-100' 
+                    isEpic
+                      ? 'bg-gray-50 hover:bg-gray-100'
                       : 'hover:bg-gray-50'
                   }`}
                   onClick={() => onRowClick && onRowClick(row.original)}
                 >
                   {row.getVisibleCells().map(cell => {
-                    const isProgressColumn = cell.column.id === 'Epic Progress %';
+                    const isProgressColumn =
+                      cell.column.id === 'Progress%' || cell.column.id === 'Progress (%)';
                     const isFlaggedColumn = cell.column.id === '# Flagged Issues';
                     const isDependencyColumn = cell.column.id === 'Dependency';
                     const isCenterAligned = isProgressColumn || isFlaggedColumn || isDependencyColumn;
                     return (
                       <td
                         key={cell.id}
-                        className={`px-1.5 py-1.5 text-sm ${isCenterAligned ? 'text-center' : ''}`}
+                        className={`px-1.5 py-1.5 text-sm border-r border-gray-200 ${
+                          isCenterAligned ? 'text-center' : ''
+                        }`}
                         style={{
-                          width: cell.column.getSize() !== 150 ? cell.column.getSize() : undefined,
+                          width: cell.column.getSize(),
                         }}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

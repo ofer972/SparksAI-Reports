@@ -22,7 +22,7 @@ export function buildTree(items: HierarchyItem[]): TreeNode[] {
   // Second pass: build parent-child relationships
   items.forEach(item => {
     const node = itemMap.get(item.key)!;
-    
+
     if (item.parent && itemMap.has(item.parent)) {
       const parent = itemMap.get(item.parent)!;
       if (!parent.children) {
@@ -30,7 +30,7 @@ export function buildTree(items: HierarchyItem[]): TreeNode[] {
       }
       parent.children.push(node);
       node.level = parent.level + 1;
-      
+
     } else {
       roots.push(node);
     }
@@ -61,7 +61,7 @@ export function flattenTree(
 ): TreeNode[] {
   nodes.forEach(node => {
     result.push(node);
-    
+
     if (node.children && node.children.length > 0) {
       const isExpanded = expandedKeys.has(node.key);
       if (isExpanded) {
@@ -93,7 +93,7 @@ export function getColumnKeys(items: HierarchyItem[]): string[] {
  */
 export function getStatusColor(status: string): string {
   const statusLower = (status || '').toLowerCase();
-  
+
   const colorMap: Record<string, string> = {
     'done': 'bg-green-100 text-green-800 border-green-200',
     'closed': 'bg-gray-100 text-gray-800 border-gray-200',
@@ -114,15 +114,23 @@ export function getStatusColor(status: string): string {
  */
 export function getStatusCategoryColor(statusCategory: string): string {
   const categoryLower = (statusCategory || '').toLowerCase();
-  
+
+  // Done - Green
   if (categoryLower === 'done') {
     return 'bg-green-100 text-green-800 border-green-200';
-  } else if (categoryLower === 'in progress' || categoryLower === 'in-progress' || categoryLower === 'in_progress') {
-    return 'bg-blue-100 text-blue-800 border-blue-200';
-  } else if (categoryLower === 'to do' || categoryLower === 'todo') {
+  }
+
+  // In Progress - Blue
+  if (categoryLower === 'in progress' || categoryLower === 'in-progress' || categoryLower === 'in_progress') {
     return 'bg-blue-100 text-blue-800 border-blue-200';
   }
-  
+
+  // To Do - Gray
+  if (categoryLower === 'to do' || categoryLower === 'todo') {
+    return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
+
+  // Default gray for unknown status categories
   return 'bg-gray-100 text-gray-800 border-gray-200';
 }
 
@@ -131,11 +139,11 @@ export function getStatusCategoryColor(statusCategory: string): string {
  */
 export function getProgressColor(progress: number | string | null | undefined): string {
   const progressNum = typeof progress === 'number' ? progress : (typeof progress === 'string' ? parseFloat(progress) : 0);
-  
+
   if (progressNum === 100) {
     return 'text-green-600 font-semibold';
   }
-  
+
   return 'text-gray-700';
 }
 
@@ -144,11 +152,12 @@ export function getProgressColor(progress: number | string | null | undefined): 
  */
 export function getTypeColor(type: string): string {
   const typeLower = (type || '').toLowerCase();
-  
+
   const colorMap: Record<string, string> = {
     'epic': 'bg-purple-100 text-purple-800 border-purple-200',
     'story': 'bg-blue-100 text-blue-800 border-blue-200',
-    'task': 'bg-green-100 text-green-800 border-green-200',
+    // Task should be gray (not green)
+    'task': 'bg-gray-100 text-gray-800 border-gray-200',
     'bug': 'bg-red-100 text-red-800 border-red-200',
   };
 
