@@ -124,6 +124,7 @@ export const API_CONFIG = {
     // Issues endpoints
     issues: {
       epicsHierarchy: '/issues/epics-hierarchy',
+      issueTypesHierarchy: '/issues/issue-types-hierarchy',
       releasePredictability: '/issues/release-predictability',
       issuesGroupedByTeam: '/issues/issues-grouped-by-team',
       epicOutboundDependencyLoadByQuarter: '/issues/epic-outbound-dependency-metrics-by-quarter',
@@ -444,6 +445,18 @@ export interface HierarchyItem {
   key: string;
   parent: string | null;
   [key: string]: any; // Dynamic columns (status, type, summary, team_name, etc.)
+}
+
+export interface IssueTypesHierarchyResponse {
+  success: boolean;
+  data: {
+    levels: Array<{
+      hierarchyLevel: number;
+      issue_types: string[];
+    }>;
+    count: number;
+  };
+  message: string;
 }
 
 export interface EpicsHierarchyResponse {

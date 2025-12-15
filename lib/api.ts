@@ -19,6 +19,7 @@ import {
   ScopeChangesDataPoint,
   HierarchyItem,
   EpicsHierarchyResponse,
+  IssueTypesHierarchyResponse,
   SprintPredictabilityItem,
   SprintPredictabilityResponse,
   ReleasePredictabilityItem,
@@ -868,6 +869,19 @@ export class ApiService {
     }
 
     return [];
+  }
+
+  // Issue Types Hierarchy API
+  async getIssueTypesHierarchy(): Promise<IssueTypesHierarchyResponse> {
+    const url = buildBackendUrl(API_CONFIG.endpoints.issues.issueTypesHierarchy);
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch issue types hierarchy: ${response.statusText}`);
+    }
+
+    const result: IssueTypesHierarchyResponse = await response.json();
+    return result;
   }
 
   // Active Sprint Summary by Team API

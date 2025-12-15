@@ -12,6 +12,7 @@ import ReportFiltersRow from '../reporting/ReportFiltersRow';
 import ReportFilterField from '../reporting/ReportFilterField';
 import TeamGroupFilter from '../TeamGroupFilter';
 import MultiPIFilter from '../MultiPIFilter';
+import IssueTypesHierarchyFilter from '../IssueTypesHierarchyFilter';
 import { ApiService } from '@/lib/api';
 
 export default function EpicsHierarchyPage() {
@@ -211,9 +212,11 @@ export default function EpicsHierarchyPage() {
     }
 
     if (hierarchyLevel !== undefined && hierarchyLevel !== null) {
+      // Find the issue type name for the selected hierarchy level
+      // Note: This would require fetching issue types, but for now just show the level number
       badges.push({
-        label: 'Hierarchy Level',
-        value: hierarchyLevel.toString(),
+        label: 'Issue Type',
+        value: `Level ${hierarchyLevel}`,
         filterKey: 'hierarchy_level',
       });
     }
@@ -242,7 +245,7 @@ export default function EpicsHierarchyPage() {
         />
       </ReportFilterField>
 
-      <ReportFilterField label="Team">
+      <ReportFilterField label="Team Name">
         <div className="flex items-center gap-2">
           <TeamGroupFilter
             value={teamName}
@@ -264,21 +267,13 @@ export default function EpicsHierarchyPage() {
         </div>
       </ReportFilterField>
 
-      <ReportFilterField label="Hierarchy Level">
-        <select
-          value={hierarchyLevel ?? ''}
-          onChange={(event) => {
-            const value = event.target.value;
-            setHierarchyLevel(value === '' ? undefined : parseInt(value, 10));
-          }}
-          className="w-32 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="">All Levels</option>
-          <option value="1">Level 1</option>
-          <option value="2">Level 2</option>
-          <option value="3">Level 3</option>
-          <option value="4">Level 4</option>
-        </select>
+      <ReportFilterField label="Issue Type Hierarchy Level">
+        <IssueTypesHierarchyFilter
+          value={hierarchyLevel}
+          onChange={setHierarchyLevel}
+          placeholder="All issue types"
+          allowClear={true}
+        />
       </ReportFilterField>
 
       <ReportFilterField label="Search">
