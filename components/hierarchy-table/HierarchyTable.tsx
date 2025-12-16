@@ -78,7 +78,7 @@ export default function HierarchyTable({
   const toggleAllExpanded = useCallback(() => {
     if (Object.keys(expanded).length === 0 || Object.values(expanded).every(v => !v)) {
       // Expand all
-      const allKeys: ExpandedState = {};
+      const allKeys: Record<string, boolean> = {};
       const collectKeys = (nodes: TreeNode[]) => {
         nodes.forEach(node => {
           if (node.children && node.children.length > 0) {
@@ -93,7 +93,7 @@ export default function HierarchyTable({
       // Collapse all
       setExpanded({});
     }
-  }, [expanded, tree]);
+  }, [expanded, tree, setExpanded]);
 
   // Build column definitions
   const columnDefs = useMemo<ColumnDef<TreeNode>[]>(() => {

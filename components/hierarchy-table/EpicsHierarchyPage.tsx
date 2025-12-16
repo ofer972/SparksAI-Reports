@@ -25,7 +25,6 @@ export default function EpicsHierarchyPage() {
   const [teamName, setTeamName] = useState<string | null>(null);
   const [isGroup, setIsGroup] = useState<boolean>(false);
   const [hierarchyLevel, setHierarchyLevel] = useState<number | undefined>(undefined);
-  const [filterText, setFilterText] = useState('');
   const [availablePIs, setAvailablePIs] = useState<string[]>([]);
 
   const apiService = useMemo(() => new ApiService(), []);
@@ -89,21 +88,6 @@ export default function EpicsHierarchyPage() {
       parent: issue['Parent Key'] || issue['Parent'] || issue.parent || null,
     }));
   }, [data]);
-
-  // Filter issues by search text (Summary and other fields)
-  const filteredIssues = useMemo(() => {
-    const query = filterText.trim().toLowerCase();
-    if (!query) {
-      return normalizedIssues;
-    }
-
-    return normalizedIssues.filter((issue) => {
-      const values = Object.values(issue)
-        .map((v) => String(v ?? '').toLowerCase())
-        .join(' ');
-      return values.includes(query);
-    });
-  }, [normalizedIssues, filterText]);
 
   const handlePIsChange = useCallback((selectedPIs: string[]) => {
     setPiNames(selectedPIs);
@@ -276,16 +260,6 @@ export default function EpicsHierarchyPage() {
         />
       </ReportFilterField>
 
-      <ReportFilterField label="Search">
-        <input
-          type="text"
-          value={filterText}
-          onChange={(event) => setFilterText(event.target.value)}
-          placeholder="Search hierarchy..."
-          className="w-48 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-      </ReportFilterField>
-
     </ReportFiltersRow>
   );
 
@@ -329,7 +303,7 @@ export default function EpicsHierarchyPage() {
       {/* Table */}
       {!loading && !error && (
         <HierarchyTable
-          data={filteredIssues}
+          data={normalizedIssues}
           columns={columns}
           defaultExpanded={false}
           showControls={false}
