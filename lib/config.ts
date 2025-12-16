@@ -140,7 +140,7 @@ export const API_CONFIG = {
     // Reports endpoints
     reports: {
       // Generic report endpoints (report_id will be part of the path)
-      issuesHierarchy: '/reports/issues-hierarchy',
+      issuesHierarchy: '/reports/issues-epics-hierarchy',
     },
 
   },
