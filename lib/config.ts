@@ -129,18 +129,21 @@ export const API_CONFIG = {
       issuesGroupedByTeam: '/issues/issues-grouped-by-team',
       epicOutboundDependencyLoadByQuarter: '/issues/epic-outbound-dependency-metrics-by-quarter',
       epicInboundDependencyLoadByQuarter: '/issues/epic-inbound-dependency-load-by-quarter',
+      cycleTimeWithIssueKeys: '/issues/cycle-time-with-issues-keys',
     },
 
     // Sprints endpoints
     sprints: {
       sprintPredictability: '/sprints/sprint-predictability',
-      activeSprintSummaryByTeam: '/sprints/active-sprint-summary-by-team',
     },
 
     // Reports endpoints
     reports: {
       // Generic report endpoints (report_id will be part of the path)
       issuesHierarchy: '/reports/issues-epics-hierarchy',
+      activeSprintSummary: '/reports/active-sprint-summary',
+      wipOverTime: '/reports/wip-over-time',
+      cycleTime: '/reports/cycle-time-over-time',
     },
 
   },
@@ -588,6 +591,113 @@ export interface ActiveSprintSummaryResponse {
     teams_in_group?: string[];
   };
   // Some backends always return this, but make it optional for safety
+  message?: string;
+}
+
+// WIP Over Time types
+export interface WIPOverTimeDataPoint {
+  snapshot_day: string;
+  issuetype: string;
+  work_in_progress: number;
+}
+
+export interface WIPOverTimeResponse {
+  success: boolean;
+  data: {
+    definition?: {
+      report_id: string;
+      report_name: string;
+      chart_type: string;
+      description: string;
+      data_source: string;
+      default_filters?: {
+        months: number;
+        isGroup: boolean;
+        team_name: string | null;
+      };
+      meta_schema?: any;
+    };
+    filters?: {
+      months: number;
+      isGroup: boolean;
+      team_name: string | null;
+      bypass_cache?: string;
+    };
+    result: WIPOverTimeDataPoint[];
+    meta?: {
+      months: number;
+      days_back: number;
+      isGroup: boolean;
+      count: number;
+      available_teams?: string[];
+      available_issue_types?: string[];
+      team_name: string | null;
+    };
+  };
+  message?: string;
+  cached?: boolean;
+}
+
+// Cycle Time types
+export interface CycleTimeDataPoint {
+  snapshot_day: string;
+  issuetype: string;
+  avg_cycle_time: number;
+  issue_count: number;
+}
+
+export interface CycleTimeResponse {
+  success: boolean;
+  data: {
+    definition?: {
+      report_id: string;
+      report_name: string;
+      chart_type: string;
+      description: string;
+      data_source: string;
+      default_filters?: {
+        months: number;
+        isGroup: boolean;
+        team_name: string | null;
+      };
+      meta_schema?: any;
+    };
+    filters?: {
+      months: number;
+      isGroup: boolean;
+      team_name: string | null;
+      bypass_cache?: string;
+    };
+    result: CycleTimeDataPoint[];
+    meta?: {
+      months: number;
+      days_back: number;
+      isGroup: boolean;
+      count: number;
+      available_teams?: string[];
+      available_issue_types?: string[];
+      team_name: string | null;
+    };
+  };
+  message?: string;
+  cached?: boolean;
+}
+
+// Cycle Time Issues types
+export interface CycleTimeIssue {
+  issue_key: string;
+  summary: string;
+  cycle_time: number;
+  resolved_at: string;
+  issue_type: string;
+  team_name: string;
+}
+
+export interface CycleTimeIssuesResponse {
+  success: boolean;
+  data: {
+    issues: CycleTimeIssue[];
+  };
   message?: string;
 }
 

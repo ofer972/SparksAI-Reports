@@ -264,7 +264,7 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
           // Handle null progress percentage
           if (val === null || val === undefined) {
             return (
-              <div className="text-sm text-center font-medium text-gray-500">
+              <div className="text-sm text-center font-bold text-gray-500">
                 -
               </div>
             );
@@ -284,7 +284,7 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
           }
 
           return (
-            <div className={`text-sm text-center font-medium ${colorClass}`}>
+            <div className={`text-sm text-center font-bold ${colorClass}`}>
               {formattedVal}%
             </div>
           );
@@ -419,7 +419,7 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
             // Handle null overall_progress_pct (should normally be filtered above)
             if (val === null || val === undefined) {
               return (
-                <div className="text-sm text-center font-medium text-gray-500">
+                <div className="text-sm text-center font-bold text-gray-500">
                   -
                 </div>
               );
@@ -439,7 +439,7 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
             }
 
             return (
-              <div className={`text-sm text-center font-medium ${colorClass}`}>
+              <div className={`text-sm text-center font-bold ${colorClass}`}>
                 {formattedVal}%
               </div>
             );
@@ -482,6 +482,14 @@ const ActiveSprintReportView: React.FC<ActiveSprintReportViewProps> = ({
               if (isIssuesAdded && issuesAddedColor && issuesAddedColor !== 'default') {
                 return (
                   <div className={`text-sm font-bold ${colorClass} text-center`}>
+                    {val.toLocaleString()}
+                  </div>
+                );
+              }
+              // For issues_added, always make it bold
+              if (isIssuesAdded) {
+                return (
+                  <div className="text-sm font-bold text-gray-500 text-center">
                     {val.toLocaleString()}
                   </div>
                 );

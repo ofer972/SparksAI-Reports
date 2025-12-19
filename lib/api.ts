@@ -41,7 +41,12 @@ import {
   Recommendation,
   RecommendationsCollectionResponse,
   PIAICard,
-  PIAICardsResponse
+  PIAICardsResponse,
+  WIPOverTimeResponse,
+  WIPOverTimeDataPoint,
+  CycleTimeResponse,
+  CycleTimeDataPoint,
+  CycleTimeIssuesResponse
 } from './config';
 
 // Re-export types for convenience
@@ -897,20 +902,108 @@ export class ApiService {
 
     params.append('isGroup', isGroup.toString());
 
-    const url = `${buildBackendUrl(API_CONFIG.endpoints.sprints.activeSprintSummaryByTeam)}?${params}`;
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.reports.activeSprintSummary)}?${params}`;
     const response = await fetch(url);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch active sprint summary: ${response.statusText}`);
     }
 
-    const result: ActiveSprintSummaryResponse = await response.json();
+    const result: any = await response.json();
 
-    if (result.success && result.data && result.data.summaries) {
-      return result.data.summaries;
+    if (result.success && result.data) {
+      // New reports endpoint structure: data.result is an array
+      if (Array.isArray(result.data.result)) {
+        return result.data.result;
+      }
+      // Legacy structure: data.summaries
+      if (result.data.summaries) {
+        return result.data.summaries;
+      }
     }
 
     return [];
+  }
+
+  // WIP Over Time API
+  async getWIPOverTime(
+    months: number = 3,
+    teamName?: string,
+    isGroup: boolean = false
+  ): Promise<WIPOverTimeResponse> {
+    const params = new URLSearchParams();
+    params.append('months', months.toString());
+
+    if (teamName) {
+      params.append('team_name', teamName);
+    }
+
+    params.append('isGroup', isGroup.toString());
+
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.reports.wipOverTime)}?${params}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch WIP over time: ${response.statusText}`);
+    }
+
+    const result: WIPOverTimeResponse = await response.json();
+    return result;
+  }
+
+  // Cycle Time API
+  async getCycleTime(
+    months: number = 3,
+    teamName?: string,
+    isGroup: boolean = false
+  ): Promise<CycleTimeResponse> {
+    const params = new URLSearchParams();
+    params.append('months', months.toString());
+
+    if (teamName) {
+      params.append('team_name', teamName);
+    }
+
+    params.append('isGroup', isGroup.toString());
+
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.reports.cycleTime)}?${params}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch cycle time: ${response.statusText}`);
+    }
+
+    const result: CycleTimeResponse = await response.json();
+    return result;
+  }
+
+  // Cycle Time Issues API
+  async getCycleTimeIssues(
+    periodStart: string,
+    periodEnd: string,
+    issuetypes: string[],
+    teamName?: string,
+    isGroup: boolean = false
+  ): Promise<CycleTimeIssuesResponse> {
+    const params = new URLSearchParams();
+    params.append('period_start', periodStart);
+    params.append('period_end', periodEnd);
+    issuetypes.forEach(type => params.append('issuetypes', type));
+
+    if (teamName) {
+      params.append('team_name', teamName);
+    }
+    params.append('isGroup', isGroup.toString());
+
+    const url = `${buildBackendUrl(API_CONFIG.endpoints.issues.cycleTimeWithIssueKeys)}?${params}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch cycle time issues: ${response.statusText}`);
+    }
+
+    const result: CycleTimeIssuesResponse = await response.json();
+    return result;
   }
 
   // Release Predictability API

@@ -1,49 +1,31 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ApiService } from '@/lib/api';
 
-interface TeamGroupFilterProps {
-  value: string | null; // team name or null
-  onChange: (value: string | null, type: 'group' | 'team', name: string) => void;
-  placeholder?: string;
+interface MultiIssueTypeFilterProps {
+  selectedTypes: string[];
+  onTypesChange: (types: string[]) => void;
+  availableTypes: string[];
   className?: string;
-  allowClear?: boolean;
+  placeholder?: string;
 }
 
-export default function TeamGroupFilter({
-  value,
-  onChange,
-  placeholder = 'Select team',
+export default function MultiIssueTypeFilter({
+  selectedTypes,
+  onTypesChange,
+  availableTypes,
   className = '',
-  allowClear = true,
-}: TeamGroupFilterProps) {
+  placeholder = 'Select issue types',
+}: MultiIssueTypeFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [teams, setTeams] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const apiService = new ApiService();
 
   useEffect(() => {
     setIsMounted(true);
-    // Fetch teams
-    const fetchTeams = async () => {
-      try {
-        const response = await apiService.getTeams();
-        if (response.teams) {
-          setTeams(response.teams);
-        }
-      } catch (err) {
-        console.error('Error fetching teams:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTeams();
   }, []);
 
   // Prevent body scroll and handle escape key when dropdown is open
@@ -67,8 +49,9 @@ export default function TeamGroupFilter({
   }, [isOpen]);
 
   const getDisplayText = () => {
-    if (!value) return placeholder;
-    return value;
+    if (selectedTypes.length === 0) return placeholder;
+    if (selectedTypes.length === 1) return selectedTypes[0];
+    return `${selectedTypes.length} types selected`;
   };
 
   const handleToggle = () => {
@@ -101,15 +84,20 @@ export default function TeamGroupFilter({
     };
   };
 
-  const handleSelect = (teamName: string) => {
-    onChange(teamName, 'team', teamName);
-    setIsOpen(false);
+  const handleTypeToggle = (type: string) => {
+    if (selectedTypes.includes(type)) {
+      onTypesChange(selectedTypes.filter(t => t !== type));
+    } else {
+      onTypesChange([...selectedTypes, type]);
+    }
   };
 
-  const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onChange(null, 'team', '');
-    setIsOpen(false);
+  const handleSelectAll = () => {
+    onTypesChange([...availableTypes]);
+  };
+
+  const handleClearAll = () => {
+    onTypesChange([]);
   };
 
   const position = getDropdownPosition();
@@ -134,31 +122,47 @@ export default function TeamGroupFilter({
           overflowY: 'auto',
         }}
       >
-        {loading ? (
-          <div className="px-3 py-2 text-sm text-gray-500 whitespace-nowrap">Loading...</div>
-        ) : teams.length === 0 ? (
-          <div className="px-3 py-2 text-sm text-gray-500 whitespace-nowrap">No teams available</div>
+        {availableTypes.length === 0 ? (
+          <div className="px-3 py-2 text-sm text-gray-500 whitespace-nowrap">No issue types available</div>
         ) : (
           <>
-            {allowClear && value && (
-              <div
-                className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 cursor-pointer border-b whitespace-nowrap"
-                onClick={handleClear}
+            <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
               >
-                Clear selection
-              </div>
-            )}
-            {teams.map(team => (
-              <div
-                key={team}
-                className={`px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer whitespace-nowrap ${
-                  value === team ? 'bg-blue-100 font-semibold' : ''
-                }`}
-                onClick={() => handleSelect(team)}
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="text-xs text-gray-600 hover:text-gray-800 font-medium"
               >
-                👥 {team}
-              </div>
-            ))}
+                Clear All
+              </button>
+            </div>
+            {availableTypes.map(type => {
+              const isSelected = selectedTypes.includes(type);
+              return (
+                <div
+                  key={type}
+                  className={`px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                    isSelected ? 'bg-blue-100' : ''
+                  }`}
+                  onClick={() => handleTypeToggle(type)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleTypeToggle(type)}
+                    className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <span className={isSelected ? 'font-semibold' : ''}>{type}</span>
+                </div>
+              );
+            })}
           </>
         )}
       </div>
@@ -172,19 +176,12 @@ export default function TeamGroupFilter({
         type="button"
         onClick={handleToggle}
         className={`px-2 py-1 border border-gray-300 rounded text-xs bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[140px] text-left flex items-center justify-between ${className}`}
-        disabled={loading}
       >
-        <span className="truncate">{loading ? 'Loading...' : getDisplayText()}</span>
+        <span className="truncate">{getDisplayText()}</span>
         <span className="ml-2 flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
       </button>
       {isMounted && isOpen && typeof window !== 'undefined' && createPortal(dropdownContent, document.body)}
     </>
   );
 }
-
-
-
-
-
-
 

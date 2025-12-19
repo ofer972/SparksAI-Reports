@@ -15,6 +15,8 @@ import TeamVelocityChartAdvancedPage from '@/components/team-velocity-chart-adva
 import TeamAICardsPage from '@/components/team-ai-cards/TeamAICardsPage';
 import RecommendationsPage from '@/components/recommendations/RecommendationsPage';
 import PIAICardsPage from '@/components/pi-ai-cards/PIAICardsPage';
+import WIPOverTimePage from '@/components/wip-over-time/WIPOverTimePage';
+import CycleTimePage from '@/components/cycle-time/CycleTimePage';
 import TreeSelect from '@/components/TreeSelect';
 
 export default function Home() {
@@ -40,6 +42,8 @@ export default function Home() {
     { id: 'report-six', label: 'PI Metrics', icon: '📋' },
     { id: 'epic-scope-changes', label: 'Epic Scope Changes', icon: '📈' },
     { id: 'team-velocity-chart-advanced', label: 'Reports - Team Velocity Advanced', icon: '📊' },
+    { id: 'wip-over-time', label: 'WIP Over Time', icon: '📈' },
+    { id: 'cycle-time', label: 'Cycle Time', icon: '⏱️' },
     { id: 'dependency-graph', label: 'Dependency Graph', icon: '🕸️' },
     { id: 'direct-ai-sql-chat', label: 'Direct AI SQL Chat', icon: '💬' },
     { id: 'create-agent-jobs', label: 'Create Agent Jobs', icon: '⚙️' },
@@ -73,6 +77,10 @@ export default function Home() {
             }}
           />
         );
+      case 'wip-over-time':
+        return <WIPOverTimePage />;
+      case 'cycle-time':
+        return <CycleTimePage />;
       case 'active-sprint-report':
         return (
           <ActiveSprintReportPage

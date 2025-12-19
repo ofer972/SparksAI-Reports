@@ -66,7 +66,7 @@ export default function ActiveSprintReportPage({
       if (process.env.NODE_ENV === 'development') {
         console.error('Active Sprint Summary API Error:', {
           error: err,
-          endpoint: '/api/v1/sprints/active-sprint-summary-by-team',
+          endpoint: '/api/v1/reports/active-sprint-summary',
           teamName,
           isGroup
         });
