@@ -36,6 +36,12 @@ ChartJS.register(
   ChartDataLabels
 );
 
+interface WIPOverTimeFilters {
+  months: number;
+  team_name: string | null;
+  isGroup: boolean;
+}
+
 interface WIPOverTimeViewProps {
   data: WIPOverTimeDataPoint[];
   meta?: {
@@ -49,12 +55,8 @@ interface WIPOverTimeViewProps {
   };
   loading: boolean;
   error: string | null;
-  filters: {
-    months: number;
-    team_name: string | null;
-    isGroup: boolean;
-  };
-  setFilters: (updater: (prev: typeof filters) => typeof filters) => void;
+  filters: WIPOverTimeFilters;
+  setFilters: (updater: (prev: WIPOverTimeFilters) => WIPOverTimeFilters) => void;
   refresh: () => void;
 }
 

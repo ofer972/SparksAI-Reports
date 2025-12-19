@@ -599,6 +599,7 @@ export interface WIPOverTimeDataPoint {
   snapshot_day: string;
   issuetype: string;
   work_in_progress: number;
+  [key: string]: string | number; // Index signature for TimeSeriesDataPoint compatibility
 }
 
 export interface WIPOverTimeResponse {
@@ -644,6 +645,7 @@ export interface CycleTimeDataPoint {
   issuetype: string;
   avg_cycle_time: number;
   issue_count: number;
+  [key: string]: string | number; // Index signature for TimeSeriesDataPoint compatibility
 }
 
 export interface CycleTimeResponse {

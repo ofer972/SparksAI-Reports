@@ -37,6 +37,12 @@ ChartJS.register(
   ChartDataLabels
 );
 
+interface CycleTimeFilters {
+  months: number;
+  team_name: string | null;
+  isGroup: boolean;
+}
+
 interface CycleTimeViewProps {
   data: CycleTimeDataPoint[];
   meta?: {
@@ -50,12 +56,8 @@ interface CycleTimeViewProps {
   };
   loading: boolean;
   error: string | null;
-  filters: {
-    months: number;
-    team_name: string | null;
-    isGroup: boolean;
-  };
-  setFilters: (updater: (prev: typeof filters) => typeof filters) => void;
+  filters: CycleTimeFilters;
+  setFilters: (updater: (prev: CycleTimeFilters) => CycleTimeFilters) => void;
   refresh: () => void;
 }
 
